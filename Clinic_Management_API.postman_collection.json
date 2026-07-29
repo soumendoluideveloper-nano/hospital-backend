@@ -1,0 +1,1587 @@
+{
+  "info": {
+    "name": "Clinic Management System",
+    "_postman_id": "clinic-mgmt-2025",
+    "description": "Complete API collection for Clinic Management System.\n\n## Setup\n1. Import this collection.\n2. Import the **Clinic Management - Env** environment file.\n3. Run **Patient → Register** → token auto-saved.\n4. Run **Clinic → Register** → token auto-saved.\n5. Run **Admin → Login** → token auto-saved.\n\nAll subsequent requests use the saved tokens automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",           "value": "http://localhost:3000" },
+    { "key": "patient_token",      "value": "" },
+    { "key": "clinic_token",       "value": "" },
+    { "key": "admin_token",        "value": "" },
+    { "key": "patient_temp_token", "value": "" },
+    { "key": "clinic_temp_token",  "value": "" },
+    { "key": "patient_otp",        "value": "" },
+    { "key": "clinic_otp",         "value": "" },
+    { "key": "patient_id",         "value": "1" },
+    { "key": "clinic_id",          "value": "1" },
+    { "key": "doctor_id",          "value": "1" },
+    { "key": "schedule_id",        "value": "1" },
+    { "key": "appointment_id",     "value": "1" },
+    { "key": "enquiry_id",         "value": "1" },
+    { "key": "lab_test_id",        "value": "1" },
+    { "key": "booking_id",         "value": "1" },
+    { "key": "banner_id",          "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth Service",
+      "description": "Registration and login for all three roles. Tokens are auto-saved to collection variables.",
+      "item": [
+        {
+          "name": "👤 Patient",
+          "item": [
+            {
+              "name": "Register Patient",
+              "item": [
+                {
+                  "name": "Step 1 — Send OTP",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "var json = pm.response.json();",
+                          "if (json.status === 1 && json.data && json.data.otp) {",
+                          "  pm.collectionVariables.set('patient_otp', json.data.otp);",
+                          "  console.log('📲 OTP received:', json.data.otp);",
+                          "}",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [{ "key": "Content-Type", "value": "application/json" }],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\":    \"9876543210\",\n  \"password\": \"password123\"\n}"
+                    },
+                    "url": { "raw": "{{base_url}}/api/auth/patient/send-otp", "host": ["{{base_url}}"], "path": ["api","auth","patient","send-otp"] }
+                  }
+                },
+                {
+                  "name": "Step 2 — Verify OTP",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "var json = pm.response.json();",
+                          "if (json.status === 1 && json.data && json.data.temp_token) {",
+                          "  pm.collectionVariables.set('patient_temp_token', json.data.temp_token);",
+                          "  console.log('✅ Patient temp_token saved');",
+                          "}",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [{ "key": "Content-Type", "value": "application/json" }],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\":   \"{{patient_otp}}\"\n}"
+                    },
+                    "url": { "raw": "{{base_url}}/api/auth/patient/verify-otp", "host": ["{{base_url}}"], "path": ["api","auth","patient","verify-otp"] }
+                  }
+                },
+                {
+                  "name": "Step 3 — Complete Profile",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "var json = pm.response.json();",
+                          "if (json.status === 1 && json.data && json.data.token) {",
+                          "  pm.collectionVariables.set('patient_token', json.data.token);",
+                          "  pm.collectionVariables.set('patient_id', json.data.patient.id);",
+                          "  console.log('✅ Patient fully registered. Token saved.');",
+                          "}",
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{patient_temp_token}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\":        \"John Doe\",\n  \"email\":       \"john.doe@example.com\",\n  \"gender\":      \"Male\",\n  \"dob\":         \"1995-06-15\",\n  \"blood_group\": \"O+\",\n  \"address\":     \"123 Main Street\",\n  \"city\":        \"Mumbai\",\n  \"state\":       \"Maharashtra\",\n  \"country\":     \"India\"\n}"
+                    },
+                    "url": { "raw": "{{base_url}}/api/auth/patient/complete-profile", "host": ["{{base_url}}"], "path": ["api","auth","patient","complete-profile"] }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Login Patient (by Phone)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.token) {",
+                      "  pm.collectionVariables.set('patient_token', json.data.token);",
+                      "  pm.collectionVariables.set('patient_id', json.data.patient.id);",
+                      "  console.log('✅ Patient token saved');",
+                      "}",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\":    \"9876543210\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/auth/patient/login", "host": ["{{base_url}}"], "path": ["api","auth","patient","login"] }
+              }
+            },
+            {
+              "name": "Login Patient (by Email)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.token) {",
+                      "  pm.collectionVariables.set('patient_token', json.data.token);",
+                      "  pm.collectionVariables.set('patient_id', json.data.patient.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\":    \"john.doe@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/auth/patient/login", "host": ["{{base_url}}"], "path": ["api","auth","patient","login"] }
+              }
+            },
+            {
+              "name": "Get Patient Profile",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/auth/patient/profile", "host": ["{{base_url}}"], "path": ["api","auth","patient","profile"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "🏥 Clinic",
+          "item": [
+            {
+              "name": "Register Clinic",
+              "item": [
+                {
+                  "name": "Step 1 — Send OTP",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "var json = pm.response.json();",
+                          "if (json.status === 1 && json.data && json.data.otp) {",
+                          "  pm.collectionVariables.set('clinic_otp', json.data.otp);",
+                          "  console.log('📲 Clinic OTP received:', json.data.otp);",
+                          "}",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [{ "key": "Content-Type", "value": "application/json" }],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\":    \"9123456789\",\n  \"password\": \"clinic123\"\n}"
+                    },
+                    "url": { "raw": "{{base_url}}/api/auth/clinic/send-otp", "host": ["{{base_url}}"], "path": ["api","auth","clinic","send-otp"] }
+                  }
+                },
+                {
+                  "name": "Step 2 — Verify OTP",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "var json = pm.response.json();",
+                          "if (json.status === 1 && json.data && json.data.temp_token) {",
+                          "  pm.collectionVariables.set('clinic_temp_token', json.data.temp_token);",
+                          "  console.log('✅ Clinic temp_token saved');",
+                          "}",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [{ "key": "Content-Type", "value": "application/json" }],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"9123456789\",\n  \"otp\":   \"{{clinic_otp}}\"\n}"
+                    },
+                    "url": { "raw": "{{base_url}}/api/auth/clinic/verify-otp", "host": ["{{base_url}}"], "path": ["api","auth","clinic","verify-otp"] }
+                  }
+                },
+                {
+                  "name": "Step 3 — Complete Profile",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "var json = pm.response.json();",
+                          "if (json.status === 1 && json.data && json.data.token) {",
+                          "  pm.collectionVariables.set('clinic_token', json.data.token);",
+                          "  pm.collectionVariables.set('clinic_id', json.data.clinic.id);",
+                          "  console.log('✅ Clinic registered. Token saved.');",
+                          "}",
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clinic_temp_token}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\":            \"City Health Clinic\",\n  \"owner_name\":      \"Dr. Priya Sharma\",\n  \"email\":           \"clinic@example.com\",\n  \"registration_no\": \"MH-2024-001\",\n  \"address\":         \"456 Hospital Road\",\n  \"city\":            \"Mumbai\",\n  \"state\":           \"Maharashtra\",\n  \"country\":         \"India\",\n  \"latitude\":        19.0760,\n  \"longitude\":       72.8777,\n  \"description\":     \"A multi-specialty health clinic in the heart of Mumbai.\",\n  \"has_lab\":         true\n}"
+                    },
+                    "url": { "raw": "{{base_url}}/api/auth/clinic/complete-profile", "host": ["{{base_url}}"], "path": ["api","auth","clinic","complete-profile"] }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Login Clinic",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.token) {",
+                      "  pm.collectionVariables.set('clinic_token', json.data.token);",
+                      "  pm.collectionVariables.set('clinic_id', json.data.clinic.id);",
+                      "  console.log('✅ Clinic token saved');",
+                      "}",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\":    \"9123456789\",\n  \"password\": \"clinic123\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/auth/clinic/login", "host": ["{{base_url}}"], "path": ["api","auth","clinic","login"] }
+              }
+            },
+            {
+              "name": "Get Clinic Profile",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/auth/clinic/profile", "host": ["{{base_url}}"], "path": ["api","auth","clinic","profile"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "🛡️ Super Admin",
+          "item": [
+            {
+              "name": "Admin Login",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.token) {",
+                      "  pm.collectionVariables.set('admin_token', json.data.token);",
+                      "  console.log('✅ Admin token saved');",
+                      "}",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\":    \"admin@clinic.com\",\n  \"password\": \"Admin@1234\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/auth/admin/login", "host": ["{{base_url}}"], "path": ["api","auth","admin","login"] }
+              }
+            },
+            {
+              "name": "Get Admin Profile",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": { "raw": "{{base_url}}/api/auth/admin/profile", "host": ["{{base_url}}"], "path": ["api","auth","admin","profile"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🏥 Clinic Service",
+      "description": "Clinics, Doctors, Schedules, Appointments, Enquiries, Call Logs",
+      "item": [
+
+        {
+          "name": "🌐 Public — Browse",
+          "item": [
+            {
+              "name": "List All Clinics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/clinic/list?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","clinic","list"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "city",   "value": "Mumbai", "disabled": true },
+                    { "key": "search", "value": "City",   "disabled": true },
+                    { "key": "has_lab","value": "true",   "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Clinic By ID",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{base_url}}/api/clinic/{{clinic_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","{{clinic_id}}"] }
+              }
+            },
+            {
+              "name": "List Doctors Under Clinic (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/clinic/doctors/public/{{clinic_id}}?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","clinic","doctors","public","{{clinic_id}}"],
+                  "query": [
+                    { "key": "page",           "value": "1" },
+                    { "key": "limit",          "value": "10" },
+                    { "key": "specialization", "value": "Cardiology", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Doctor Profile (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}"] }
+              }
+            },
+            {
+              "name": "Get Doctor Schedule (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}/schedules", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}","schedules"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "🏥 Clinic Admin — Dashboard & Profile",
+          "item": [
+            {
+              "name": "Clinic Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/clinic/dashboard", "host": ["{{base_url}}"], "path": ["api","clinic","dashboard"] }
+              }
+            },
+            {
+              "name": "Update Clinic Profile",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name",        "value": "City Health Clinic (Updated)", "type": "text" },
+                    { "key": "phone",       "value": "9999988888",                   "type": "text" },
+                    { "key": "description", "value": "Updated clinic description.",  "type": "text" },
+                    { "key": "has_lab",     "value": "true",                         "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/profile", "host": ["{{base_url}}"], "path": ["api","clinic","profile"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "👨‍⚕️ Clinic Admin — Doctors",
+          "item": [
+            {
+              "name": "Add Doctor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('doctor_id', json.data.id);",
+                      "  console.log('✅ doctor_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name",             "value": "Dr. Rajesh Kumar",   "type": "text" },
+                    { "key": "email",            "value": "rajesh@clinic.com",  "type": "text" },
+                    { "key": "phone",            "value": "9012345678",         "type": "text" },
+                    { "key": "specialization",   "value": "Cardiology",         "type": "text" },
+                    { "key": "qualification",    "value": "MBBS, MD (Cardiology)", "type": "text" },
+                    { "key": "experience",       "value": "10",                 "type": "text" },
+                    { "key": "consultation_fee", "value": "500",                "type": "text" },
+                    { "key": "about",            "value": "Experienced cardiologist with 10 years of practice.", "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/doctors", "host": ["{{base_url}}"], "path": ["api","clinic","doctors"] }
+              }
+            },
+            {
+              "name": "List My Doctors",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/clinic/doctors?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","clinic","doctors"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "search", "value": "Rajesh", "disabled": true },
+                    { "key": "status", "value": "Active",  "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Doctor",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "consultation_fee", "value": "700",  "type": "text" },
+                    { "key": "experience",       "value": "12",   "type": "text" },
+                    { "key": "about",            "value": "Senior cardiologist — 12 years experience.", "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}"] }
+              }
+            },
+            {
+              "name": "Remove Doctor (Soft Delete)",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "📅 Clinic Admin — Schedules",
+          "item": [
+            {
+              "name": "Add Schedule Slot",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('schedule_id', json.data.id);",
+                      "  console.log('✅ schedule_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"day\": \"Monday\",\n  \"start_time\": \"09:00:00\",\n  \"end_time\": \"13:00:00\",\n  \"slot_duration\": 15\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}/schedules", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}","schedules"] }
+              }
+            },
+            {
+              "name": "Add Schedule — Wednesday",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"day\": \"Wednesday\",\n  \"start_time\": \"14:00:00\",\n  \"end_time\": \"18:00:00\",\n  \"slot_duration\": 20\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}/schedules", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}","schedules"] }
+              }
+            },
+            {
+              "name": "Update Schedule",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"start_time\": \"10:00:00\",\n  \"end_time\": \"14:00:00\",\n  \"slot_duration\": 30,\n  \"is_available\": true\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/schedules/{{schedule_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","schedules","{{schedule_id}}"] }
+              }
+            },
+            {
+              "name": "Delete Schedule",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/clinic/schedules/{{schedule_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","schedules","{{schedule_id}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "📋 Clinic Admin — Appointments",
+          "item": [
+            {
+              "name": "List All Appointments",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/clinic/appointments?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","clinic","appointments"],
+                  "query": [
+                    { "key": "page",      "value": "1" },
+                    { "key": "limit",     "value": "10" },
+                    { "key": "status",    "value": "Pending",    "disabled": true },
+                    { "key": "doctor_id", "value": "1",          "disabled": true },
+                    { "key": "date",      "value": "2025-08-01", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Appointment Detail",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/clinic/appointments/{{appointment_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","appointments","{{appointment_id}}"] }
+              }
+            },
+            {
+              "name": "Confirm Appointment",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Confirmed\",\n  \"notes\": \"Please bring your previous reports.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/appointments/{{appointment_id}}/status", "host": ["{{base_url}}"], "path": ["api","clinic","appointments","{{appointment_id}}","status"] }
+              }
+            },
+            {
+              "name": "Complete Appointment",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Completed\",\n  \"notes\": \"Prescription given. Follow-up in 2 weeks.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/appointments/{{appointment_id}}/status", "host": ["{{base_url}}"], "path": ["api","clinic","appointments","{{appointment_id}}","status"] }
+              }
+            },
+            {
+              "name": "Reject Appointment",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Rejected\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/appointments/{{appointment_id}}/status", "host": ["{{base_url}}"], "path": ["api","clinic","appointments","{{appointment_id}}","status"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "💬 Clinic Admin — Enquiries",
+          "item": [
+            {
+              "name": "List All Enquiries",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/clinic/enquiries?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","clinic","enquiries"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "status", "value": "Pending", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Reply to Enquiry",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reply\": \"Thank you for contacting us. Our doctor is available on Monday from 9 AM - 1 PM. Please book an appointment.\",\n  \"status\": \"Answered\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/enquiries/{{enquiry_id}}/reply", "host": ["{{base_url}}"], "path": ["api","clinic","enquiries","{{enquiry_id}}","reply"] }
+              }
+            },
+            {
+              "name": "Close Enquiry",
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/clinic/enquiries/{{enquiry_id}}/close", "host": ["{{base_url}}"], "path": ["api","clinic","enquiries","{{enquiry_id}}","close"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "📞 Call Logs",
+          "item": [
+            {
+              "name": "List Call Logs (Clinic Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/clinic/call-logs?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","clinic","call-logs"],
+                  "query": [
+                    { "key": "page",      "value": "1" },
+                    { "key": "limit",     "value": "10" },
+                    { "key": "call_type", "value": "Video",     "disabled": true },
+                    { "key": "status",    "value": "Completed", "disabled": true },
+                    { "key": "doctor_id", "value": "1",         "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Record Call Log (Patient)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"patient_id\": {{patient_id}},\n  \"clinic_id\":  {{clinic_id}},\n  \"doctor_id\":  {{doctor_id}},\n  \"call_type\":  \"Video\",\n  \"duration\":   300,\n  \"status\":     \"Completed\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/call-logs", "host": ["{{base_url}}"], "path": ["api","clinic","call-logs"] }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "👤 Patient Service",
+      "description": "Patient profile, appointments, enquiries, reviews, notifications",
+      "item": [
+
+        {
+          "name": "🙍 Profile",
+          "item": [
+            {
+              "name": "Get My Profile",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/patient/profile", "host": ["{{base_url}}"], "path": ["api","patient","profile"] }
+              }
+            },
+            {
+              "name": "Update My Profile",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "name",        "value": "John Doe Updated", "type": "text" },
+                    { "key": "blood_group", "value": "A+",               "type": "text" },
+                    { "key": "address",     "value": "789 New Street",   "type": "text" },
+                    { "key": "city",        "value": "Pune",             "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/patient/profile", "host": ["{{base_url}}"], "path": ["api","patient","profile"] }
+              }
+            },
+            {
+              "name": "Get Notifications",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/patient/notifications?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","patient","notifications"],
+                  "query": [
+                    { "key": "page",  "value": "1"  },
+                    { "key": "limit", "value": "20" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "📅 Appointments",
+          "item": [
+            {
+              "name": "Book Appointment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('appointment_id', json.data.id);",
+                      "  console.log('✅ appointment_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clinic_id\":        {{clinic_id}},\n  \"doctor_id\":        {{doctor_id}},\n  \"appointment_date\": \"2025-08-10\",\n  \"appointment_time\": \"10:00:00\",\n  \"reason\":           \"Chest pain and shortness of breath.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/patient/appointments", "host": ["{{base_url}}"], "path": ["api","patient","appointments"] }
+              }
+            },
+            {
+              "name": "List My Appointments",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/patient/appointments?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","patient","appointments"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "status", "value": "Pending", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Appointment Detail",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/patient/appointments/{{appointment_id}}", "host": ["{{base_url}}"], "path": ["api","patient","appointments","{{appointment_id}}"] }
+              }
+            },
+            {
+              "name": "Cancel Appointment",
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/patient/appointments/{{appointment_id}}/cancel", "host": ["{{base_url}}"], "path": ["api","patient","appointments","{{appointment_id}}","cancel"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "💬 Enquiries",
+          "item": [
+            {
+              "name": "Send Enquiry (to Clinic)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('enquiry_id', json.data.id);",
+                      "  console.log('✅ enquiry_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clinic_id\": {{clinic_id}},\n  \"message\":   \"Hello, I would like to know the timings for cardiologist consultation.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/patient/enquiries", "host": ["{{base_url}}"], "path": ["api","patient","enquiries"] }
+              }
+            },
+            {
+              "name": "Send Enquiry (to Doctor)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clinic_id\": {{clinic_id}},\n  \"doctor_id\": {{doctor_id}},\n  \"message\":   \"I need a second opinion on my ECG report. Is it possible to have a video consultation?\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/patient/enquiries", "host": ["{{base_url}}"], "path": ["api","patient","enquiries"] }
+              }
+            },
+            {
+              "name": "List My Enquiries",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/patient/enquiries", "host": ["{{base_url}}"], "path": ["api","patient","enquiries"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "⭐ Reviews",
+          "item": [
+            {
+              "name": "Review a Doctor",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"doctor_id\": {{doctor_id}},\n  \"rating\":    5,\n  \"review\":    \"Excellent doctor! Very thorough and patient. Highly recommended.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/patient/reviews/doctor", "host": ["{{base_url}}"], "path": ["api","patient","reviews","doctor"] }
+              }
+            },
+            {
+              "name": "Review a Clinic",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clinic_id\": {{clinic_id}},\n  \"rating\":    4,\n  \"review\":    \"Good facilities and friendly staff. Waiting time was a bit long.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/patient/reviews/clinic", "host": ["{{base_url}}"], "path": ["api","patient","reviews","clinic"] }
+              }
+            },
+            {
+              "name": "My Reviews",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/patient/reviews/my", "host": ["{{base_url}}"], "path": ["api","patient","reviews","my"] }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🔬 Lab Service",
+      "description": "Lab test catalogue, bookings, and report management",
+      "item": [
+
+        {
+          "name": "🌐 Public — Browse Tests",
+          "item": [
+            {
+              "name": "Browse Lab Tests (by Clinic)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/lab/tests?clinic_id={{clinic_id}}&page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","lab","tests"],
+                  "query": [
+                    { "key": "clinic_id", "value": "{{clinic_id}}" },
+                    { "key": "page",      "value": "1" },
+                    { "key": "limit",     "value": "10" },
+                    { "key": "search",    "value": "CBC", "disabled": true }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "🏥 Clinic Admin — Lab Tests",
+          "item": [
+            {
+              "name": "Add Lab Test",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('lab_test_id', json.data.id);",
+                      "  console.log('✅ lab_test_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"test_name\":       \"Complete Blood Count (CBC)\",\n  \"description\":    \"Measures different components of blood including RBC, WBC, and platelets.\",\n  \"price\":          250.00,\n  \"report_duration\": \"Same Day\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/lab/tests", "host": ["{{base_url}}"], "path": ["api","lab","tests"] }
+              }
+            },
+            {
+              "name": "Add Lab Test — LFT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"test_name\":       \"Liver Function Test (LFT)\",\n  \"description\":    \"Evaluates liver health by checking enzymes, proteins, and bilirubin.\",\n  \"price\":          450.00,\n  \"report_duration\": \"24 hours\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/lab/tests", "host": ["{{base_url}}"], "path": ["api","lab","tests"] }
+              }
+            },
+            {
+              "name": "My Lab Tests",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/lab/tests/my?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","lab","tests","my"],
+                  "query": [
+                    { "key": "page",  "value": "1"  },
+                    { "key": "limit", "value": "10" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Lab Test",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\":           299.00,\n  \"report_duration\": \"4–6 hours\",\n  \"status\":          \"Active\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/lab/tests/{{lab_test_id}}", "host": ["{{base_url}}"], "path": ["api","lab","tests","{{lab_test_id}}"] }
+              }
+            },
+            {
+              "name": "Delete Lab Test (Soft)",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": { "raw": "{{base_url}}/api/lab/tests/{{lab_test_id}}", "host": ["{{base_url}}"], "path": ["api","lab","tests","{{lab_test_id}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "🧪 Patient — Book Tests",
+          "item": [
+            {
+              "name": "Book a Lab Test",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('booking_id', json.data.id);",
+                      "  console.log('✅ booking_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clinic_id\":    {{clinic_id}},\n  \"lab_test_id\":  {{lab_test_id}},\n  \"booking_date\": \"2025-08-12\",\n  \"booking_time\": \"08:30:00\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/lab/bookings", "host": ["{{base_url}}"], "path": ["api","lab","bookings"] }
+              }
+            },
+            {
+              "name": "My Lab Test Bookings",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/lab/bookings/my?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","lab","bookings","my"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "status", "value": "Pending", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get My Lab Report",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "url": { "raw": "{{base_url}}/api/lab/reports/{{booking_id}}", "host": ["{{base_url}}"], "path": ["api","lab","reports","{{booking_id}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "🏥 Clinic Admin — Manage Bookings & Reports",
+          "item": [
+            {
+              "name": "All Lab Bookings",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/lab/bookings?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","lab","bookings"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "status", "value": "Pending", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Mark Booking — Collected",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"status\": \"Collected\" }"
+                },
+                "url": { "raw": "{{base_url}}/api/lab/bookings/{{booking_id}}/status", "host": ["{{base_url}}"], "path": ["api","lab","bookings","{{booking_id}}","status"] }
+              }
+            },
+            {
+              "name": "Mark Booking — Processing",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"status\": \"Processing\" }"
+                },
+                "url": { "raw": "{{base_url}}/api/lab/bookings/{{booking_id}}/status", "host": ["{{base_url}}"], "path": ["api","lab","bookings","{{booking_id}}","status"] }
+              }
+            },
+            {
+              "name": "Upload Lab Report",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "report_file", "type": "file",  "src": "",  "description": "Select a PDF or image file" },
+                    { "key": "remarks",     "value": "All values within normal range. No abnormalities detected.", "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/lab/reports/{{booking_id}}", "host": ["{{base_url}}"], "path": ["api","lab","reports","{{booking_id}}"] }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🛡️ Admin Service",
+      "description": "Super Admin — dashboard, clinic/patient management, banners, notifications",
+      "item": [
+
+        {
+          "name": "📊 Dashboard & Management",
+          "item": [
+            {
+              "name": "Platform Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": { "raw": "{{base_url}}/api/admin/dashboard", "host": ["{{base_url}}"], "path": ["api","admin","dashboard"] }
+              }
+            },
+            {
+              "name": "List All Clinics",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/clinics?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","admin","clinics"],
+                  "query": [
+                    { "key": "page",    "value": "1" },
+                    { "key": "limit",   "value": "10" },
+                    { "key": "status",  "value": "Active",  "disabled": true },
+                    { "key": "has_lab", "value": "true",    "disabled": true },
+                    { "key": "city",    "value": "Mumbai",  "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Activate Clinic",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"status\": \"Active\" }"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/clinics/{{clinic_id}}/status", "host": ["{{base_url}}"], "path": ["api","admin","clinics","{{clinic_id}}","status"] }
+              }
+            },
+            {
+              "name": "Deactivate Clinic",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"status\": \"Inactive\" }"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/clinics/{{clinic_id}}/status", "host": ["{{base_url}}"], "path": ["api","admin","clinics","{{clinic_id}}","status"] }
+              }
+            },
+            {
+              "name": "List All Patients",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/patients?page=1&limit=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","admin","patients"],
+                  "query": [
+                    { "key": "page",   "value": "1" },
+                    { "key": "limit",  "value": "10" },
+                    { "key": "status", "value": "Active", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Deactivate Patient",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"status\": \"Inactive\" }"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/patients/{{patient_id}}/status", "host": ["{{base_url}}"], "path": ["api","admin","patients","{{patient_id}}","status"] }
+              }
+            },
+            {
+              "name": "Activate Patient",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"status\": \"Active\" }"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/patients/{{patient_id}}/status", "host": ["{{base_url}}"], "path": ["api","admin","patients","{{patient_id}}","status"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "🖼️ Banners",
+          "item": [
+            {
+              "name": "Active Banners (Public)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{base_url}}/api/admin/banners/active", "host": ["{{base_url}}"], "path": ["api","admin","banners","active"] }
+              }
+            },
+            {
+              "name": "All Banners (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": { "raw": "{{base_url}}/api/admin/banners", "host": ["{{base_url}}"], "path": ["api","admin","banners"] }
+              }
+            },
+            {
+              "name": "Create Banner",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var json = pm.response.json();",
+                      "if (json.status === 1 && json.data && json.data.id) {",
+                      "  pm.collectionVariables.set('banner_id', json.data.id);",
+                      "  console.log('✅ banner_id saved:', json.data.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "title",        "value": "Summer Health Camp",     "type": "text" },
+                    { "key": "redirect_url", "value": "https://example.com/camp", "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/admin/banners", "host": ["{{base_url}}"], "path": ["api","admin","banners"] }
+              }
+            },
+            {
+              "name": "Update Banner",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "title",  "value": "Winter Wellness Drive", "type": "text" },
+                    { "key": "status", "value": "Active",                "type": "text" }
+                  ]
+                },
+                "url": { "raw": "{{base_url}}/api/admin/banners/{{banner_id}}", "host": ["{{base_url}}"], "path": ["api","admin","banners","{{banner_id}}"] }
+              }
+            },
+            {
+              "name": "Delete Banner",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": { "raw": "{{base_url}}/api/admin/banners/{{banner_id}}", "host": ["{{base_url}}"], "path": ["api","admin","banners","{{banner_id}}"] }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "🔔 Notifications",
+          "item": [
+            {
+              "name": "Send Targeted Notification (to 1 Patient)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"receiver_type\": \"Patient\",\n  \"receiver_id\":   {{patient_id}},\n  \"title\":         \"Special Offer!\",\n  \"message\":       \"Get 20% off on all lab tests this week. Book now!\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/notifications/send", "host": ["{{base_url}}"], "path": ["api","admin","notifications","send"] }
+              }
+            },
+            {
+              "name": "Broadcast to All Patients",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"receiver_type\": \"Patient\",\n  \"title\":         \"Platform Maintenance\",\n  \"message\":       \"The app will be down for maintenance on Sunday 2 AM – 4 AM. We apologise for the inconvenience.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/notifications/send", "host": ["{{base_url}}"], "path": ["api","admin","notifications","send"] }
+              }
+            },
+            {
+              "name": "Broadcast to All Clinics",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"receiver_type\": \"Clinic\",\n  \"title\":         \"New Feature Released\",\n  \"message\":       \"You can now upload lab reports directly from the app dashboard.\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/admin/notifications/send", "host": ["{{base_url}}"], "path": ["api","admin","notifications","send"] }
+              }
+            },
+            {
+              "name": "List All Notifications",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/notifications?page=1&limit=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api","admin","notifications"],
+                  "query": [
+                    { "key": "page",          "value": "1" },
+                    { "key": "limit",         "value": "20" },
+                    { "key": "receiver_type", "value": "Patient", "disabled": true }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🩺 Health Checks",
+      "description": "Verify each microservice is running",
+      "item": [
+        {
+          "name": "Gateway Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3000/health", "host": ["http://localhost:3000"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Auth Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:4000/health", "host": ["http://localhost:4000"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Clinic Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:4001/health", "host": ["http://localhost:4001"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Patient Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:4002/health", "host": ["http://localhost:4002"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Lab Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:4003/health", "host": ["http://localhost:4003"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Admin Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:4004/health", "host": ["http://localhost:4004"], "path": ["health"] }
+          }
+        }
+      ]
+    }
+
+  ]
+}
