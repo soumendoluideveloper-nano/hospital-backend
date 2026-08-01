@@ -185,6 +185,7 @@ exports.login = async (req, res) => {
     const clinic = await db.Clinic.findOne({
       where: email ? { email } : { phone }
     });
+    
     // console.log("[clinic.login] clinic:", clinic);
     if (!clinic) return error(res, "Invalid credentials", 201);
     if (clinic.status === "Inactive") return error(res, "Clinic account is deactivated", 403);
