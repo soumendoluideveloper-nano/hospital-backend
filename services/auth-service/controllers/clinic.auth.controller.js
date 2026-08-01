@@ -44,6 +44,7 @@ const otpExpiry = () => {
 // ════════════════════════════════════════════════════════════════════
 exports.sendOtp = async (req, res) => {
   try {
+    console.log("[clinic.sendOtp]");
     const { error: validErr } = sendOtpSchema.validate(req.body);
     if (validErr) return error(res, validErr.details[0].message);
 
@@ -54,12 +55,12 @@ exports.sendOtp = async (req, res) => {
 
     await db.OtpVerification.destroy({ where: { phone, type: "clinic", is_used: false } });
 
-    const hashed = await bcrypt.hash(password, 10);
+    // const hashed = await bcrypt.hash(password, 10);
     const otp = generateOtp();
 
     await db.OtpVerification.create({
       phone,
-      password: hashed,
+      password: "",
       otp,
       type: "clinic",
       expires_at: otpExpiry()
@@ -125,33 +126,34 @@ exports.verifyOtp = async (req, res) => {
 // ════════════════════════════════════════════════════════════════════
 exports.completeProfile = async (req, res) => {
   try {
-    const { phone, otp_record_id } = req.user;
+    // const { phone, otp_record_id } = req.user;
 
     const { error: validErr } = completeClinicSchema.validate(req.body);
     if (validErr) return error(res, validErr.details[0].message);
 
     const record = await db.OtpVerification.findOne({
-      where: { id: otp_record_id, phone, type: "clinic", is_used: true }
+      where: { phone: req.body.phone, type: "clinic", is_used: true }
     });
     if (!record) return error(res, "Session invalid or expired. Please start registration again.", 400);
 
-    const existing = await db.Clinic.findOne({ where: { phone } });
+    const existing = await db.Clinic.findOne({ where: { phone: req.body.phone } });
     if (existing) return error(res, "This phone number is already registered.", 409);
 
-    const {
+    const {phone,
       name, owner_name, email,
       registration_no, address, city, state, country,
-      latitude, longitude, description, has_lab
+      latitude, longitude, description, has_lab, pincode,password
     } = req.body;
-
+ const hashed = await bcrypt.hash(password, 10);
     const clinic = await db.Clinic.create({
       name, owner_name,
       email: email || null,
       phone,
-      password: record.password, // hashed from Step 1
+      password: hashed, // hashed from Step 1
       registration_no, address, city, state, country,
       latitude, longitude, description,
-      has_lab: has_lab === true || has_lab === "true"
+      has_lab: has_lab === true || has_lab === "true",
+      pincode
     });
 
     await record.destroy();
@@ -174,19 +176,21 @@ exports.completeProfile = async (req, res) => {
 // ════════════════════════════════════════════════════════════════════
 exports.login = async (req, res) => {
   try {
+   
     const { error: validErr } = clinicLoginSchema.validate(req.body);
     if (validErr) return error(res, validErr.details[0].message);
 
     const { email, phone, password } = req.body;
-
+    console.log("[clinic.login] phone:", phone, "email:", password ? "******" : "N/A");
     const clinic = await db.Clinic.findOne({
       where: email ? { email } : { phone }
     });
-    if (!clinic) return error(res, "Invalid credentials", 401);
+    // console.log("[clinic.login] clinic:", clinic);
+    if (!clinic) return error(res, "Invalid credentials", 201);
     if (clinic.status === "Inactive") return error(res, "Clinic account is deactivated", 403);
 
     const match = await bcrypt.compare(password, clinic.password);
-    if (!match) return error(res, "Invalid credentials", 401);
+    if (!match) return error(res, "Invalid credentials", 201);
 
     const token = signToken({ id: clinic.id, role: "clinic", phone: clinic.phone });
     await db.Clinic.update({ token }, { where: { id: clinic.id } });

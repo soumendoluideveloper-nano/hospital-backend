@@ -61,6 +61,10 @@ module.exports = (sequelize, DataTypes) => {
       state: {
         type: DataTypes.STRING(100)
       },
+      pincode: {
+        type:    DataTypes.STRING(10),
+        comment: "Postal / ZIP code"
+      },
       country: {
         type: DataTypes.STRING(100)
       },
