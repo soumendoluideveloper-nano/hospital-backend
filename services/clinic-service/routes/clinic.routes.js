@@ -19,5 +19,10 @@ router.put ("/profile",
   upload.single("logo"),
   controller.updateProfile
 );
+router.put("/change-password",
+  auth({ roles: ["clinic"] }),
+  controller.changePassword
+);
 
 module.exports = router;
+
