@@ -30,7 +30,7 @@ exports.updateProfile = async (req, res) => {
     const allowed = ["name","gender","dob","blood_group","address","city","state","country"];
     const updates = {};
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
-    if (req.file) updates.profile_image = req.file.path.replace(/\\/g, "/");
+    if (req.file) updates.profile_image = "uploads/" + req.file.path.replace(/\\/g, "/").split("uploads/")[1];
 
     await db.Patient.update(updates, { where: { id: req.user.id } });
 

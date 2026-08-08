@@ -476,7 +476,7 @@
                 "body": {
                   "mode": "raw",
                   "options": { "raw": { "language": "json" } },
-                  "raw": "{\n  \"name\":            \"City Health Clinic (Updated)\",\n  \"owner_name\":      \"Dr. Priya Sharma\",\n  \"email\":           \"clinic@example.com\",\n  \"registration_no\": \"MH-2024-001\",\n  \"address\":         \"456 Hospital Road, Andheri\",\n  \"city\":            \"Mumbai\",\n  \"state\":           \"Maharashtra\",\n  \"country\":         \"India\",\n  \"latitude\":        19.076,\n  \"longitude\":       72.8777,\n  \"description\":     \"Updated — multi-specialty health clinic in Mumbai.\",\n  \"has_lab\":         true\n}"
+                  "raw": "{\n  \"name\":            \"City Health Clinic (Updated)\",\n  \"owner_name\":      \"Dr. Priya Sharma\",\n  \"email\":           \"clinic@example.com\",\n  \"registration_no\": \"MH-2024-001\",\n  \"address\":         \"456 Hospital Road, Andheri\",\n  \"city\":            \"Mumbai\",\n  \"state\":           \"Maharashtra\",\n  \"country\":         \"India\",\n  \"latitude\":        19.076,\n  \"longitude\":       72.8777,\n  \"description\":     \"Updated — multi-specialty health clinic in Mumbai.\",\n  \"has_lab\":         true,\n  \"logo\":            \"uploads/logos/clinic_logo.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/profile", "host": ["{{base_url}}"], "path": ["api","clinic","profile"] }
               }
@@ -536,19 +536,14 @@
               ],
               "request": {
                 "method": "POST",
-                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    { "key": "name",             "value": "Dr. Rajesh Kumar",   "type": "text" },
-                    { "key": "email",            "value": "rajesh@clinic.com",  "type": "text" },
-                    { "key": "phone",            "value": "9012345678",         "type": "text" },
-                    { "key": "specialization",   "value": "Cardiology",         "type": "text" },
-                    { "key": "qualification",    "value": "MBBS, MD (Cardiology)", "type": "text" },
-                    { "key": "experience",       "value": "10",                 "type": "text" },
-                    { "key": "consultation_fee", "value": "500",                "type": "text" },
-                    { "key": "about",            "value": "Experienced cardiologist with 10 years of practice.", "type": "text" }
-                  ]
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"name\":             \"Dr. Rajesh Kumar\",\n  \"email\":            \"rajesh@clinic.com\",\n  \"phone\":            \"9012345678\",\n  \"specialization\":   \"Cardiology\",\n  \"qualification\":    \"MBBS, MD (Cardiology)\",\n  \"experience\":       10,\n  \"consultation_fee\": 500,\n  \"about\":            \"Experienced cardiologist with 10 years of practice.\",\n  \"profile_image\":   \"uploads/profiles/doctor.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/doctors", "host": ["{{base_url}}"], "path": ["api","clinic","doctors"] }
               }
@@ -575,14 +570,14 @@
               "name": "Update Doctor",
               "request": {
                 "method": "PUT",
-                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    { "key": "consultation_fee", "value": "700",  "type": "text" },
-                    { "key": "experience",       "value": "12",   "type": "text" },
-                    { "key": "about",            "value": "Senior cardiologist — 12 years experience.", "type": "text" }
-                  ]
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"consultation_fee\": 700,\n  \"experience\":       12,\n  \"about\":            \"Senior cardiologist — 12 years experience.\",\n  \"profile_image\":   \"uploads/profiles/doctor_updated.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}"] }
               }
@@ -858,15 +853,14 @@
               "name": "Update My Profile",
               "request": {
                 "method": "PUT",
-                "header": [{ "key": "Authorization", "value": "Bearer {{patient_token}}" }],
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{patient_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    { "key": "name",        "value": "John Doe Updated", "type": "text" },
-                    { "key": "blood_group", "value": "A+",               "type": "text" },
-                    { "key": "address",     "value": "789 New Street",   "type": "text" },
-                    { "key": "city",        "value": "Pune",             "type": "text" }
-                  ]
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"name\":          \"John Doe Updated\",\n  \"blood_group\":   \"A+\",\n  \"address\":       \"789 New Street\",\n  \"city\":          \"Pune\",\n  \"profile_image\": \"uploads/profiles/patient.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/patient/profile", "host": ["{{base_url}}"], "path": ["api","patient","profile"] }
               }
@@ -1464,13 +1458,14 @@
               ],
               "request": {
                 "method": "POST",
-                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    { "key": "title",        "value": "Summer Health Camp",     "type": "text" },
-                    { "key": "redirect_url", "value": "https://example.com/camp", "type": "text" }
-                  ]
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"title\":        \"Summer Health Camp\",\n  \"redirect_url\": \"https://example.com/camp\",\n  \"image\":        \"uploads/banners/banner.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/admin/banners", "host": ["{{base_url}}"], "path": ["api","admin","banners"] }
               }
@@ -1479,13 +1474,14 @@
               "name": "Update Banner",
               "request": {
                 "method": "PUT",
-                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    { "key": "title",  "value": "Winter Wellness Drive", "type": "text" },
-                    { "key": "status", "value": "Active",                "type": "text" }
-                  ]
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"title\":  \"Winter Wellness Drive\",\n  \"status\": \"Active\",\n  \"image\":  \"uploads/banners/banner_updated.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/admin/banners/{{banner_id}}", "host": ["{{base_url}}"], "path": ["api","admin","banners","{{banner_id}}"] }
               }
