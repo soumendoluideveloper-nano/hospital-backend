@@ -4,8 +4,10 @@
  */
 
 const { Op }     = require("sequelize");
+const bcrypt     = require("bcryptjs");
 const db         = require("../../../common/models");
 const { success, error, paginated } = require("../../../common/helpers/response.helper");
+const { updateProfileSchema, changePasswordSchema } = require("../validation/clinic.validation");
 
 // ------------------------------------------------------------------
 // GET /api/clinic/list  (public — patient-facing)
@@ -66,26 +68,61 @@ exports.getClinicById = async (req, res) => {
 
 // ------------------------------------------------------------------
 // PUT /api/clinic/profile  (clinic admin — protected)
+// Body (JSON): any subset of { name, owner_name, email,
+//   registration_no, address, city, state, country,
+//   latitude, longitude, description, has_lab }
+// Rules:
+//   • Only fields present in the body are updated.
+//   • Empty strings are rejected — omit the key to keep the current value.
+//   • A multipart upload with field name "logo" replaces the clinic logo.
 // ------------------------------------------------------------------
 exports.updateProfile = async (req, res) => {
   try {
     const clinicId = req.user.id;
-    const allowed  = ["name","owner_name","phone","registration_no","address","city",
-                      "state","country","latitude","longitude","description","has_lab"];
+
+    // ── 1. Validate incoming body ──────────────────────────────────
+    const { error: validErr, value: validated } = updateProfileSchema.validate(req.body, {
+      abortEarly: true,   // stop at first error for a clear message
+      convert:    true    // coerce "true"/"false" strings → booleans, etc.
+    });
+    if (validErr) return error(res, validErr.details[0].message, 422);
+
+    // ── 2. Build updates object — only fields explicitly provided ──
+    //   Fields the client did not send are left untouched in the DB.
+    const allowedFields = [
+      "name", "owner_name", "email",
+      "registration_no", "address", "city",
+      "state", "country", "latitude", "longitude",
+      "description", "has_lab"
+    ];
 
     const updates = {};
-    allowed.forEach(field => {
-      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    allowedFields.forEach(field => {
+      if (validated[field] !== undefined) {
+        updates[field] = validated[field];
+      }
     });
 
-    if (req.file) updates.logo = req.file.path.replace(/\\/g, "/");
+    // ── 3. Handle optional logo upload ────────────────────────────
+    if (req.file) {
+      updates.logo = req.file.path.replace(/\\/g, "/");
+    }
 
+    // ── 4. Nothing to update? Return current profile as-is ────────
+    if (Object.keys(updates).length === 0) {
+      const current = await db.Clinic.findByPk(clinicId, {
+        attributes: { exclude: ["password", "token"] }
+      });
+      return success(res, "No changes provided — profile unchanged", current);
+    }
+
+    // ── 5. Persist & return updated record ────────────────────────
     await db.Clinic.update(updates, { where: { id: clinicId } });
 
     const updated = await db.Clinic.findByPk(clinicId, {
-      attributes: { exclude: ["password","token"] }
+      attributes: { exclude: ["password", "token"] }
     });
-    return success(res, "Profile updated", updated);
+    return success(res, "Profile updated successfully", updated);
   } catch (err) {
     console.error("[clinic.updateProfile]", err);
     return error(res, "Internal server error", 500);
@@ -114,6 +151,43 @@ exports.getDashboard = async (req, res) => {
     });
   } catch (err) {
     console.error("[clinic.getDashboard]", err);
+    return error(res, "Internal server error", 500);
+  }
+};
+
+// ------------------------------------------------------------------
+// PUT /api/clinic/change-password  (clinic admin — protected)
+// Body: { current_password, new_password, confirm_password }
+// ------------------------------------------------------------------
+exports.changePassword = async (req, res) => {
+  try {
+    const clinicId = req.user.id;
+
+    // ── 1. Validate request body ───────────────────────────────────
+    const { error: validErr, value } = changePasswordSchema.validate(req.body, {
+      abortEarly: true
+    });
+    if (validErr) return error(res, validErr.details[0].message, 422);
+
+    const { current_password, new_password } = value;
+
+    // ── 2. Fetch clinic WITH password field ───────────────────────
+    const clinic = await db.Clinic.findByPk(clinicId);
+    if (!clinic) return error(res, "Clinic not found", 404);
+
+    // ── 3. Verify current password ────────────────────────────────
+    const isMatch = await bcrypt.compare(current_password, clinic.password);
+    if (!isMatch) {
+      return error(res, "Current password is incorrect", 401);
+    }
+
+    // ── 4. Hash & save new password ───────────────────────────────
+    const hashed = await bcrypt.hash(new_password, 10);
+    await db.Clinic.update({ password: hashed }, { where: { id: clinicId } });
+
+    return success(res, "Password changed successfully");
+  } catch (err) {
+    console.error("[clinic.changePassword]", err);
     return error(res, "Internal server error", 500);
   }
 };

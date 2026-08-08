@@ -453,19 +453,63 @@
             },
             {
               "name": "Update Clinic Profile",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Profile updated', () => {",
+                      "  var json = pm.response.json();",
+                      "  pm.expect(json.status).to.eql(1);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "PUT",
-                "header": [{ "key": "Authorization", "value": "Bearer {{clinic_token}}" }],
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
                 "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    { "key": "name",        "value": "City Health Clinic (Updated)", "type": "text" },
-                    { "key": "phone",       "value": "9999988888",                   "type": "text" },
-                    { "key": "description", "value": "Updated clinic description.",  "type": "text" },
-                    { "key": "has_lab",     "value": "true",                         "type": "text" }
-                  ]
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"name\":            \"City Health Clinic (Updated)\",\n  \"owner_name\":      \"Dr. Priya Sharma\",\n  \"email\":           \"clinic@example.com\",\n  \"registration_no\": \"MH-2024-001\",\n  \"address\":         \"456 Hospital Road, Andheri\",\n  \"city\":            \"Mumbai\",\n  \"state\":           \"Maharashtra\",\n  \"country\":         \"India\",\n  \"latitude\":        19.076,\n  \"longitude\":       72.8777,\n  \"description\":     \"Updated — multi-specialty health clinic in Mumbai.\",\n  \"has_lab\":         true\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/profile", "host": ["{{base_url}}"], "path": ["api","clinic","profile"] }
+              }
+            },
+            {
+              "name": "Change Password",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Password changed', () => {",
+                      "  var json = pm.response.json();",
+                      "  pm.expect(json.status).to.eql(1);",
+                      "  pm.expect(json.message).to.include('Password changed');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{clinic_token}}" },
+                  { "key": "Content-Type",  "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"current_password\": \"clinic123\",\n  \"new_password\":     \"newClinic@456\",\n  \"confirm_password\": \"newClinic@456\"\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/clinic/change-password", "host": ["{{base_url}}"], "path": ["api","clinic","change-password"] }
               }
             }
           ]
