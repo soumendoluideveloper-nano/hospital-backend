@@ -211,6 +211,7 @@ exports.login = async (req, res) => {
 // ════════════════════════════════════════════════════════════════════
 exports.getProfile = async (req, res) => {
   try {
+    console.log("[clinic.getProfile] req.user:", req.user);
     const clinic = await db.Clinic.findByPk(req.user.id, {
       attributes: { exclude: ["password", "token"] },
       include: [

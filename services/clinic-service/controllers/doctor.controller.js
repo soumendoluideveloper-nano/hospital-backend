@@ -16,7 +16,7 @@ exports.addDoctor = async (req, res) => {
     const clinicId = req.user.id;
     const {
       name, email, phone, specialization, qualification,
-      experience, consultation_fee, about, profile_image
+      experience, consultation_fee, about, profile_image,registration_no
     } = req.body;
 
     if (!name) return error(res, "Doctor name is required");
@@ -24,7 +24,7 @@ exports.addDoctor = async (req, res) => {
     const doctor = await db.Doctor.create({
       clinic_id: clinicId,
       name, email, phone, specialization, qualification,
-      experience, consultation_fee, about, profile_image
+      experience, consultation_fee, about, profile_image,registration_no
     });
 
     return success(res, "Doctor added successfully", doctor, 201);
@@ -42,7 +42,7 @@ exports.listDoctors = async (req, res) => {
     const clinicId = req.user.id;
     const { search, status, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
-
+    console.log(search, clinicId);
     const where = { clinic_id: clinicId };
     if (status) where.status = status;
     if (search) where.name   = { [Op.like]: `%${search}%` };
@@ -129,7 +129,7 @@ exports.updateDoctor = async (req, res) => {
     if (!doctor) return error(res, "Doctor not found or not under your clinic", 404);
 
     const allowed = ["name","email","phone","specialization","qualification",
-                     "experience","consultation_fee","about","status","profile_image"];
+                     "experience","consultation_fee","about","status","profile_image","registration_no"];
     const updates = {};
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 

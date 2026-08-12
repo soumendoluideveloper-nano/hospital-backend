@@ -9,7 +9,7 @@ const { setFolder, upload } = require("../../../common/middleware/upload.middlew
 
 // ---- Public (patient-facing browsing) ----
 router.get("/list",      controller.listClinics);
-router.get("/:id",       controller.getClinicById);
+// router.get("/:id",       controller.getClinicById);
 
 // ---- Clinic admin protected ----
 router.get ("/dashboard",  auth({ roles: ["clinic"] }), controller.getDashboard);

@@ -49,6 +49,10 @@ module.exports = (sequelize, DataTypes) => {
         type:    DataTypes.DECIMAL(10, 2),
         comment: "Per-session consultation fee in default currency"
       },
+      registration_no: {
+        type:    DataTypes.STRING(50),
+        comment: "Registration number / license number"
+      },
       profile_image: {
         type:    DataTypes.STRING(255),
         comment: "Relative path to doctor's profile picture"

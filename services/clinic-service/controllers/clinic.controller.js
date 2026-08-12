@@ -58,7 +58,7 @@ exports.getClinicById = async (req, res) => {
         }
       ]
     });
-    if (!clinic) return error(res, "Clinic not found", 404);
+    if (!clinic) return error(res, "Clinic not found1", 404);
     return success(res, "Clinic fetched", clinic);
   } catch (err) {
     console.error("[clinic.getClinicById]", err);
@@ -173,7 +173,7 @@ exports.changePassword = async (req, res) => {
 
     // ── 2. Fetch clinic WITH password field ───────────────────────
     const clinic = await db.Clinic.findByPk(clinicId);
-    if (!clinic) return error(res, "Clinic not found", 404);
+    if (!clinic) return error(res, "Clinic not found2", 404);
 
     // ── 3. Verify current password ────────────────────────────────
     const isMatch = await bcrypt.compare(current_password, clinic.password);
