@@ -105,7 +105,7 @@ exports.updateProfile = async (req, res) => {
 
     // ── 3. Handle optional logo upload ────────────────────────────
     if (req.file) {
-      updates.logo = req.file.path.replace(/\\/g, "/");
+      updates.logo = "uploads/" + req.file.path.replace(/\\/g, "/").split("uploads/")[1];
     }
 
     // ── 4. Nothing to update? Return current profile as-is ────────

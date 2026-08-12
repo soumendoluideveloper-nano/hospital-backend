@@ -17,7 +17,7 @@ exports.uploadReport = async (req, res) => {
     const booking = await db.TestBooking.findOne({ where: { id: bookingId, clinic_id: clinicId } });
     if (!booking) return error(res, "Booking not found under your clinic", 404);
 
-    const report_file = req.file ? req.file.path.replace(/\\/g, "/") : null;
+    const report_file = req.file ? "uploads/" + req.file.path.replace(/\\/g, "/").split("uploads/")[1] : null;
     const { remarks }  = req.body;
 
     // Upsert (one report per booking)

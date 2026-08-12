@@ -16,11 +16,14 @@ const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
 
+/** Absolute path to the shared uploads root (hospital-backend/public/uploads) */
+const UPLOADS_ROOT = path.resolve(__dirname, "../../public/uploads");
+
 /** Multer disk storage — organized by sub-folder */
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     const folder = req.uploadFolder || "misc";
-    const dir = path.join("public", "uploads", folder);
+    const dir = path.join(UPLOADS_ROOT, folder);
     ensureDir(dir);
     cb(null, dir);
   },

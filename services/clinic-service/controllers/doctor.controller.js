@@ -16,12 +16,10 @@ exports.addDoctor = async (req, res) => {
     const clinicId = req.user.id;
     const {
       name, email, phone, specialization, qualification,
-      experience, consultation_fee, about
+      experience, consultation_fee, about, profile_image
     } = req.body;
 
     if (!name) return error(res, "Doctor name is required");
-
-    const profile_image = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
     const doctor = await db.Doctor.create({
       clinic_id: clinicId,
@@ -131,10 +129,9 @@ exports.updateDoctor = async (req, res) => {
     if (!doctor) return error(res, "Doctor not found or not under your clinic", 404);
 
     const allowed = ["name","email","phone","specialization","qualification",
-                     "experience","consultation_fee","about","status"];
+                     "experience","consultation_fee","about","status","profile_image"];
     const updates = {};
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
-    if (req.file) updates.profile_image = req.file.path.replace(/\\/g, "/");
 
     await doctor.update(updates);
     return success(res, "Doctor updated", doctor);

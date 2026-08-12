@@ -12,7 +12,7 @@ const { success, error } = require("../../../common/helpers/response.helper");
 exports.createBanner = async (req, res) => {
   try {
     const { title, redirect_url } = req.body;
-    const image = req.file ? req.file.path.replace(/\\/g, "/") : null;
+    const image = req.file ? "uploads/" + req.file.path.replace(/\\/g, "/").split("uploads/")[1] : null;
 
     const banner = await db.Banner.create({ title, image, redirect_url });
     return success(res, "Banner created", banner, 201);
@@ -51,7 +51,7 @@ exports.updateBanner = async (req, res) => {
     if (req.body.title)        updates.title        = req.body.title;
     if (req.body.redirect_url) updates.redirect_url = req.body.redirect_url;
     if (req.body.status)       updates.status       = req.body.status;
-    if (req.file)              updates.image        = req.file.path.replace(/\\/g, "/");
+    if (req.file)              updates.image        = "uploads/" + req.file.path.replace(/\\/g, "/").split("uploads/")[1];
 
     await banner.update(updates);
     return success(res, "Banner updated", banner);
