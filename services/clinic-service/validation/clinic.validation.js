@@ -1,89 +1,214 @@
 const Joi = require("joi");
 
 /**
+ * ============================================================
  * Update Profile Validation Schema
- * -----------------------------------
- * Used by PUT /api/clinic/profile
+ * ============================================================
+ *
+ * Used by:
+ * PUT /api/clinic/profile
  *
  * Rules:
- *  - All fields are optional (partial update allowed).
- *  - Empty strings ("") are NOT allowed for any field —
- *    the client must omit the key entirely to keep the existing value.
- *  - `email` must be a valid e-mail format when provided.
- *  - `latitude` / `longitude` must be numeric when provided.
- *  - `has_lab` must be boolean when provided.
+ * - All fields are optional (partial update allowed).
+ * - Empty strings are NOT allowed.
+ * - Client should omit the field to keep existing value.
+ * - Email must be valid when provided.
+ * - Latitude / longitude must be numeric when provided.
+ * - has_lab must be boolean when provided.
  */
+
 exports.updateProfileSchema = Joi.object({
-  name:            Joi.string().trim().min(2).max(150)
-                     .messages({ "string.empty": "\"name\" cannot be empty" }),
+  name: Joi.string()
+    .trim()
+    .min(2)
+    .max(150)
+    .messages({
+      "string.empty":
+        "Clinic name cannot be empty",
 
-  owner_name:      Joi.string().trim().min(2).max(100)
-                     .messages({ "string.empty": "\"owner_name\" cannot be empty" }),
+      "string.min":
+        "Clinic name must be at least 2 characters",
 
-  email:           Joi.string().trim().email()
-                     .messages({
-                       "string.empty": "\"email\" cannot be empty",
-                       "string.email": "\"email\" must be a valid email address"
-                     }),
+      "string.max":
+        "Clinic name must not exceed 150 characters",
+    }),
 
-  registration_no: Joi.string().trim().max(100)
-                     .messages({ "string.empty": "\"registration_no\" cannot be empty" }),
+  owner_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .messages({
+      "string.empty":
+        "Owner name cannot be empty",
 
-  address:         Joi.string().trim()
-                     .messages({ "string.empty": "\"address\" cannot be empty" }),
+      "string.min":
+        "Owner name must be at least 2 characters",
 
-  city:            Joi.string().trim().max(100)
-                     .messages({ "string.empty": "\"city\" cannot be empty" }),
+      "string.max":
+        "Owner name must not exceed 100 characters",
+    }),
 
-  state:           Joi.string().trim().max(100)
-                     .messages({ "string.empty": "\"state\" cannot be empty" }),
+  email: Joi.string()
+    .trim()
+    .email()
+    .messages({
+      "string.empty":
+        "Email cannot be empty",
 
-  country:         Joi.string().trim().max(100)
-                     .messages({ "string.empty": "\"country\" cannot be empty" }),
+      "string.email":
+        "Please enter a valid email address",
+    }),
 
-  latitude:        Joi.number()
-                     .messages({ "number.base": "\"latitude\" must be a valid number" }),
+  registration_no: Joi.string()
+    .trim()
+    .max(100)
+    .messages({
+      "string.empty":
+        "Registration number cannot be empty",
 
-  longitude:       Joi.number()
-                     .messages({ "number.base": "\"longitude\" must be a valid number" }),
+      "string.max":
+        "Registration number must not exceed 100 characters",
+    }),
 
-  description:     Joi.string().trim().allow(null)
-                     .messages({ "string.empty": "\"description\" cannot be empty — omit the field to keep existing value" }),
+  address: Joi.string()
+    .trim()
+    .messages({
+      "string.empty":
+        "Address cannot be empty",
+    }),
 
-  has_lab:         Joi.boolean()
-                     .messages({ "boolean.base": "\"has_lab\" must be true or false" })
-}).options({ allowUnknown: false });
+  city: Joi.string()
+    .trim()
+    .max(100)
+    .messages({
+      "string.empty":
+        "City cannot be empty",
+
+      "string.max":
+        "City must not exceed 100 characters",
+    }),
+
+  state: Joi.string()
+    .trim()
+    .max(100)
+    .messages({
+      "string.empty":
+        "State cannot be empty",
+
+      "string.max":
+        "State must not exceed 100 characters",
+    }),
+
+  country: Joi.string()
+    .trim()
+    .max(100)
+    .messages({
+      "string.empty":
+        "Country cannot be empty",
+
+      "string.max":
+        "Country must not exceed 100 characters",
+    }),
+
+  latitude: Joi.number()
+    .messages({
+      "number.base":
+        "Latitude must be a valid number",
+    }),
+
+  longitude: Joi.number()
+    .messages({
+      "number.base":
+        "Longitude must be a valid number",
+    }),
+
+  description: Joi.string()
+    .trim()
+    .allow(null)
+    .messages({
+      "string.empty":
+        "Description cannot be empty. Omit this field to keep the existing value",
+    }),
+
+  has_lab: Joi.boolean()
+    .messages({
+      "boolean.base":
+        "Laboratory availability must be true or false",
+    }),
+}).options({
+  allowUnknown: false,
+});
+
 
 /**
+ * ============================================================
  * Change Password Validation Schema
- * -----------------------------------
- * Used by PUT /api/clinic/change-password
+ * ============================================================
+ *
+ * Used by:
+ * PUT /api/clinic/change-password
  *
  * Rules:
- *  - `current_password` — required, must match the stored bcrypt hash.
- *  - `new_password`     — required, min 6 chars, must differ from current.
- *  - `confirm_password` — required, must exactly match new_password.
+ * - Current password is required.
+ * - New password is required.
+ * - New password must be at least 8 characters.
+ * - New password must contain at least one uppercase letter.
+ * - New password must contain at least one number.
+ * - New password must differ from current password.
+ * - Confirm password must match new password.
  */
+
 exports.changePasswordSchema = Joi.object({
-  current_password: Joi.string().required()
-                      .messages({
-                        "string.empty": "\"current_password\" cannot be empty",
-                        "any.required": "\"current_password\" is required"
-                      }),
+  current_password: Joi.string()
+    .required()
+    .messages({
+      "string.empty":
+        "Current password cannot be empty",
 
-  new_password:     Joi.string().min(6).required()
-                      .invalid(Joi.ref("current_password"))
-                      .messages({
-                        "string.empty":   "\"new_password\" cannot be empty",
-                        "string.min":     "\"new_password\" must be at least 6 characters",
-                        "any.required":   "\"new_password\" is required",
-                        "any.invalid":    "\"new_password\" must differ from your current password"
-                      }),
+      "any.required":
+        "Current password is required",
+    }),
 
-  confirm_password: Joi.string().valid(Joi.ref("new_password")).required()
-                      .messages({
-                        "string.empty":  "\"confirm_password\" cannot be empty",
-                        "any.only":      "\"confirm_password\" does not match \"new_password\"",
-                        "any.required":  "\"confirm_password\" is required"
-                      })
-}).options({ allowUnknown: false });
+  new_password: Joi.string()
+    .min(8)
+    .pattern(/[A-Z]/)
+    .pattern(/[0-9]/)
+    .required()
+    .invalid(
+      Joi.ref("current_password")
+    )
+    .messages({
+      "string.empty":
+        "New password cannot be empty",
+
+      "string.min":
+        "New password must be at least 8 characters",
+
+      "string.pattern.base":
+        "New password must contain at least one uppercase letter and one number",
+
+      "any.required":
+        "New password is required",
+
+      "any.invalid":
+        "New password must be different from your current password",
+    }),
+
+  confirm_password: Joi.string()
+    .valid(
+      Joi.ref("new_password")
+    )
+    .required()
+    .messages({
+      "string.empty":
+        "Confirm password cannot be empty",
+
+      "any.only":
+        "Confirm password does not match the new password",
+
+      "any.required":
+        "Confirm password is required",
+    }),
+}).options({
+  allowUnknown: false,
+});

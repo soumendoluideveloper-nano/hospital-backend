@@ -79,7 +79,7 @@ exports.getClinicById = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const clinicId = req.user.id;
-
+    console.log(req.body);
     // ── 1. Validate incoming body ──────────────────────────────────
     const { error: validErr, value: validated } = updateProfileSchema.validate(req.body, {
       abortEarly: true,   // stop at first error for a clear message

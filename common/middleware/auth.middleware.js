@@ -21,15 +21,19 @@ const { error }       = require("../helpers/response.helper");
 module.exports = (options = {}) => {
   return (req, res, next) => {
     try {
+      console.log("[auth.middleware] Validating token for route:", req.method, req.originalUrl);
+      console.log("[auth.middleware] Allowed roles:", options.roles || "any");
       const authHeader = req.headers.authorization;
 
       if (!authHeader) {
+        console.error("[auth.middleware] Authorization header missing");
         return error(res, "Authorization header missing", 401);
       }
 
       const [scheme, token] = authHeader.split(" ");
 
       if (scheme !== "Bearer" || !token) {
+        console.error("[auth.middleware] Invalid authorization format:", authHeader);
         return error(res, "Invalid authorization format. Use: Bearer <token>", 401);
       }
 
@@ -41,6 +45,7 @@ module.exports = (options = {}) => {
       // Role-based access control
       if (options.roles && options.roles.length > 0) {
         if (!options.roles.includes(decoded.role)) {
+          console.error("[auth.middleware] Access denied for user:", decoded.id, "with role:", decoded.role);
           return error(
             res,
             `Access denied. Required role(s): ${options.roles.join(", ")}`,
@@ -52,8 +57,10 @@ module.exports = (options = {}) => {
       next();
     } catch (err) {
       if (err.name === "TokenExpiredError") {
+        console.error("[auth.middleware]", err);
         return error(res, "Token has expired. Please login again.", 401);
       }
+      console.error("[auth.middleware]", err);
       return error(res, "Invalid or malformed token", 401);
     }
   };
