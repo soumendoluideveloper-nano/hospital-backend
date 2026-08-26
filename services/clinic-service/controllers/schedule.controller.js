@@ -19,13 +19,17 @@ exports.addSchedule = async (req, res) => {
     const doctor = await db.Doctor.findOne({ where: { id: doctorId, clinic_id: clinicId } });
     if (!doctor) return error(res, "Doctor not found under your clinic", 404);
 
-    const { day, start_time, end_time, slot_duration } = req.body;
-    if (!day || !start_time || !end_time || !slot_duration) {
-      return error(res, "day, start_time, end_time, and slot_duration are required");
+    // Input is already validated by validate(addScheduleSchema) middleware
+    const { day, start_time, end_time, slot_duration, is_available } = req.body;
+
+    // Business logic: end_time must be after start_time
+    if (end_time <= start_time) {
+      return error(res, "end_time must be after start_time", 422);
     }
 
     const schedule = await db.DoctorSchedule.create({
-      doctor_id: doctorId, day, start_time, end_time, slot_duration
+      doctor_id: doctorId, day, start_time, end_time, slot_duration,
+      ...(is_available !== undefined && { is_available })
     });
 
     return success(res, "Schedule added", schedule, 201);
@@ -64,9 +68,17 @@ exports.updateSchedule = async (req, res) => {
       return error(res, "Schedule not found or not under your clinic", 404);
     }
 
+    // Input is already validated by validate(updateScheduleSchema) middleware
     const allowed = ["day","start_time","end_time","slot_duration","is_available"];
     const updates = {};
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+    // Business logic: if both times are present (new or existing), end must be after start
+    const effectiveStart = updates.start_time || schedule.start_time;
+    const effectiveEnd   = updates.end_time   || schedule.end_time;
+    if (effectiveEnd <= effectiveStart) {
+      return error(res, "end_time must be after start_time", 422);
+    }
 
     await schedule.update(updates);
     return success(res, "Schedule updated", schedule);

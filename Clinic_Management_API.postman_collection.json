@@ -529,7 +529,11 @@
                       "if (json.status === 1 && json.data && json.data.id) {",
                       "  pm.collectionVariables.set('doctor_id', json.data.id);",
                       "  console.log('✅ doctor_id saved:', json.data.id);",
-                      "}"
+                      "}",
+                      "pm.test('Status 201 — Doctor created', () => pm.response.to.have.status(201));",
+                      "pm.test('Response has doctor id', () => {",
+                      "  pm.expect(pm.response.json().data).to.have.property('id');",
+                      "});"
                     ]
                   }
                 }
@@ -543,7 +547,7 @@
                 "body": {
                   "mode": "raw",
                   "options": { "raw": { "language": "json" } },
-                  "raw": "{\n  \"name\":             \"Dr. Rajesh Kumar\",\n  \"email\":            \"rajesh@clinic.com\",\n  \"phone\":            \"9012345678\",\n  \"specialization\":   \"Cardiology\",\n  \"qualification\":    \"MBBS, MD (Cardiology)\",\n  \"experience\":       10,\n  \"consultation_fee\": 500,\n  \"about\":            \"Experienced cardiologist with 10 years of practice.\",\n  \"profile_image\":   \"uploads/profiles/doctor.png\"\n}"
+                  "raw": "{\n  \"name\":             \"Dr. Rajesh Kumar\",\n  \"email\":            \"rajesh@clinic.com\",\n  \"phone\":            \"9012345678\",\n  \"specialization\":   \"Cardiology\",\n  \"qualification\":    \"MBBS, MD (Cardiology)\",\n  \"experience\":       10,\n  \"consultation_fee\": 500,\n  \"registration_no\": \"MCI12345\",\n  \"about\":            \"Experienced cardiologist with 10 years of practice.\",\n  \"profile_image\":   \"https://example.com/uploads/profiles/doctor.png\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/doctors", "host": ["{{base_url}}"], "path": ["api","clinic","doctors"] }
               }
@@ -568,6 +572,19 @@
             },
             {
               "name": "Update Doctor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200 — Doctor updated', () => pm.response.to.have.status(200));",
+                      "pm.test('Response success', () => {",
+                      "  pm.expect(pm.response.json().status).to.eql(1);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "PUT",
                 "header": [
@@ -577,7 +594,7 @@
                 "body": {
                   "mode": "raw",
                   "options": { "raw": { "language": "json" } },
-                  "raw": "{\n  \"consultation_fee\": 700,\n  \"experience\":       12,\n  \"about\":            \"Senior cardiologist — 12 years experience.\",\n  \"profile_image\":   \"uploads/profiles/doctor_updated.png\"\n}"
+                  "raw": "{\n  \"consultation_fee\": 700,\n  \"experience\":       12,\n  \"registration_no\": \"MCI12345\",\n  \"about\":            \"Senior cardiologist — 12 years experience.\",\n  \"profile_image\":   \"https://example.com/uploads/profiles/doctor_updated.png\",\n  \"status\":          \"Active\"\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}"] }
               }
@@ -620,7 +637,8 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"day\": \"Monday\",\n  \"start_time\": \"09:00:00\",\n  \"end_time\": \"13:00:00\",\n  \"slot_duration\": 15\n}"
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"day\": \"Monday\",\n  \"start_time\": \"09:00\",\n  \"end_time\": \"13:00\",\n  \"slot_duration\": 15\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}/schedules", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}","schedules"] }
               }
@@ -635,7 +653,8 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"day\": \"Wednesday\",\n  \"start_time\": \"14:00:00\",\n  \"end_time\": \"18:00:00\",\n  \"slot_duration\": 20\n}"
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"day\": \"Wednesday\",\n  \"start_time\": \"14:00\",\n  \"end_time\": \"18:00\",\n  \"slot_duration\": 20\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/doctors/{{doctor_id}}/schedules", "host": ["{{base_url}}"], "path": ["api","clinic","doctors","{{doctor_id}}","schedules"] }
               }
@@ -650,7 +669,8 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"start_time\": \"10:00:00\",\n  \"end_time\": \"14:00:00\",\n  \"slot_duration\": 30,\n  \"is_available\": true\n}"
+                  "options": { "raw": { "language": "json" } },
+                  "raw": "{\n  \"start_time\": \"10:00\",\n  \"end_time\": \"14:00\",\n  \"slot_duration\": 30,\n  \"is_available\": true\n}"
                 },
                 "url": { "raw": "{{base_url}}/api/clinic/schedules/{{schedule_id}}", "host": ["{{base_url}}"], "path": ["api","clinic","schedules","{{schedule_id}}"] }
               }

@@ -16,15 +16,14 @@ exports.addDoctor = async (req, res) => {
     const clinicId = req.user.id;
     const {
       name, email, phone, specialization, qualification,
-      experience, consultation_fee, about, profile_image,registration_no
+      experience, consultation_fee, about, profile_image, registration_no
     } = req.body;
 
-    if (!name) return error(res, "Doctor name is required");
-
+    // Input is already validated + sanitised by validate(addDoctorSchema) middleware
     const doctor = await db.Doctor.create({
       clinic_id: clinicId,
       name, email, phone, specialization, qualification,
-      experience, consultation_fee, about, profile_image,registration_no
+      experience, consultation_fee, about, profile_image, registration_no
     });
 
     return success(res, "Doctor added successfully", doctor, 201);
