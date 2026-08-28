@@ -2,11 +2,11 @@ const Joi = require("joi");
 
 // ── Step 1 ──────────────────────────────────────────────────────────
 /**
- * Send OTP — patient provides phone + password only
+ * Send OTP — patient provides phone (password optional at step 1)
  */
 exports.sendOtpSchema = Joi.object({
   phone:    Joi.string().min(7).max(20).required(),
-  password: Joi.string().min(6).required()
+  password: Joi.string().min(6).optional().allow("", null)
 });
 
 // ── Step 2 ──────────────────────────────────────────────────────────
@@ -20,10 +20,11 @@ exports.verifyOtpSchema = Joi.object({
 
 // ── Step 3 ──────────────────────────────────────────────────────────
 /**
- * Complete Profile — all remaining patient details (JSON body)
+ * Complete Profile — patient details + password (if not provided in step 1)
  */
 exports.completePatientSchema = Joi.object({
   name:        Joi.string().min(2).max(100).required(),
+  password:    Joi.string().min(6).optional().allow("", null),
   email:       Joi.string().email().optional().allow("", null),
   gender:      Joi.string().valid("Male", "Female", "Other").optional(),
   dob:         Joi.date().iso().optional(),

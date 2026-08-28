@@ -47,6 +47,7 @@ const otpExpiry = () => {
 };
 
 // ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
 // STEP 1 — POST /api/auth/patient/send-otp
 // ════════════════════════════════════════════════════════════════════
 exports.sendOtp = async (req, res) => {
@@ -63,7 +64,7 @@ exports.sendOtp = async (req, res) => {
     // Delete any previous unused OTP for this phone
     await db.OtpVerification.destroy({ where: { phone, type: "patient", is_used: false } });
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = password ? await bcrypt.hash(password, 10) : "";
     const otp    = generateOtp();
 
     await db.OtpVerification.create({
@@ -77,6 +78,7 @@ exports.sendOtp = async (req, res) => {
     // Send OTP via configured SMS gateway
     try {
       await sendSMS(phone, otp);
+      console.log(`[OTP] Patient ${phone} → ${otp}`);
     } catch (smsErr) {
       console.error("[SMS] Failed to send OTP:", smsErr.message);
       return error(res, "Failed to send OTP. Please try again.", 503);
@@ -148,13 +150,22 @@ exports.completeProfile = async (req, res) => {
     const existing = await db.Patient.findOne({ where: { phone } });
     if (existing) return error(res, "This phone number is already registered.", 409);
 
-    const { name, email, gender, dob, blood_group, address, city, state, country } = req.body;
+    const { name, email, password: bodyPassword, gender, dob, blood_group, address, city, state, country } = req.body;
+
+    let finalPassword = record.password;
+    if (bodyPassword) {
+      finalPassword = await bcrypt.hash(bodyPassword, 10);
+    }
+
+    if (!finalPassword) {
+      return error(res, "Password is required to create an account.", 422);
+    }
 
     const patient = await db.Patient.create({
       name, email: email || null,
-      phone, password: record.password, // use the hashed password from Step 1
-      gender, dob, blood_group,
-      address, city, state, country
+      phone, password: finalPassword,
+      gender: gender || null, dob: dob || null, blood_group: blood_group || null,
+      address: address || null, city: city || null, state: state || null, country: country || null
     });
 
     // Clean up OTP record

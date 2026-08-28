@@ -61,6 +61,56 @@ exports.listDoctors = async (req, res) => {
 };
 
 // ------------------------------------------------------------------
+// GET /api/clinic/doctors/public  (public — patient view all doctors)
+// ------------------------------------------------------------------
+exports.listAllPublicDoctors = async (req, res) => {
+  try {
+    const { specialization, search, city, page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const where = { status: "Active" };
+    if (specialization) where.specialization = { [Op.like]: `%${specialization}%` };
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { specialization: { [Op.like]: `%${search}%` } },
+        { qualification: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const clinicWhere = { status: "Active" };
+    if (city) clinicWhere.city = { [Op.like]: `%${city}%` };
+
+    const { count, rows } = await db.Doctor.findAndCountAll({
+      where,
+      attributes: { exclude: ["created_at","updated_at"] },
+      include: [
+        {
+          model:      db.Clinic,
+          as:         "clinic",
+          where:      clinicWhere,
+          attributes: ["id","name","city","state","address","phone"],
+          required:   false
+        },
+        {
+          model:      db.DoctorSchedule,
+          as:         "schedules",
+          where:      { is_available: true },
+          required:   false
+        }
+      ],
+      limit:  Number(limit),
+      offset: Number(offset),
+      order:  [["id", "DESC"]]
+    });
+    return paginated(res, "Doctors fetched", rows, count, page, limit);
+  } catch (err) {
+    console.error("[doctor.listAllPublicDoctors]", err);
+    return error(res, "Internal server error", 500);
+  }
+};
+
+// ------------------------------------------------------------------
 // GET /api/clinic/doctors/public/:clinicId  (public — patient view)
 // ------------------------------------------------------------------
 exports.listPublicDoctors = async (req, res) => {

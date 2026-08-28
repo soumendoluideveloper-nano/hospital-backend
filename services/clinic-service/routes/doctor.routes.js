@@ -9,6 +9,7 @@ const validate   = require("../../../common/middleware/validate.middleware");
 const { addDoctorSchema, updateDoctorSchema } = require("../validation/doctor.validation");
 
 // ---- Public ----
+router.get("/doctors/public",          controller.listAllPublicDoctors);
 router.get("/doctors/public/:clinicId", controller.listPublicDoctors);
 router.get("/doctors/:id",             controller.getDoctorById);
 

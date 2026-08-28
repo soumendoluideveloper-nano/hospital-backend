@@ -353,3 +353,46 @@ exports.updateScheduleSchema = Joi.object({
   .messages({
     "object.min": "At least one field must be provided for update",
   });
+
+
+/**
+ * ============================================================
+ * Save Weekly Schedule Validation Schema
+ * ============================================================
+ *
+ * Used by:
+ * PUT /api/clinic/doctors/:doctorId/schedules
+ */
+exports.saveWeeklyScheduleSchema = Joi.object({
+  schedule: Joi.array().items(
+    Joi.object({
+      day: Joi.string()
+        .trim()
+        .valid("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+        .required()
+        .messages({
+          "string.empty": "Day cannot be empty",
+          "any.only":     "Day must be a valid weekday: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, or Sunday",
+          "any.required": "Day is required",
+        }),
+      enabled: Joi.boolean().default(true),
+      sessions: Joi.array().items(
+        Joi.object({
+          id: Joi.any().optional(),
+          start_time: Joi.string().trim().required().messages({
+            "string.empty": "Start time cannot be empty",
+            "any.required": "Start time is required",
+          }),
+          end_time: Joi.string().trim().required().messages({
+            "string.empty": "End time cannot be empty",
+            "any.required": "End time is required",
+          }),
+          slot_duration: Joi.number().integer().min(5).max(480).optional().default(30),
+          is_available: Joi.boolean().optional().default(true),
+        })
+      ).default([]),
+    })
+  ).required().messages({
+    "any.required": "Schedule array is required",
+  }),
+}).options({ allowUnknown: false });
