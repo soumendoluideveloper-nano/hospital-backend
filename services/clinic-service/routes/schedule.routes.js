@@ -12,6 +12,7 @@ const { addScheduleSchema, updateScheduleSchema, saveWeeklyScheduleSchema } = re
 router.get ("/doctors/:doctorId/schedules", controller.getSchedules);
 
 // Clinic admin
+router.get   ("/schedules/today",              auth({ roles: ["clinic"] }), controller.getTodaySchedules);
 router.post  ("/doctors/:doctorId/schedules", auth({ roles: ["clinic"] }), validate(addScheduleSchema),        controller.addSchedule);
 router.put   ("/doctors/:doctorId/schedules", auth({ roles: ["clinic"] }), validate(saveWeeklyScheduleSchema), controller.saveWeeklySchedule);
 router.put   ("/schedules/:id",               auth({ roles: ["clinic"] }), validate(updateScheduleSchema),     controller.updateSchedule);

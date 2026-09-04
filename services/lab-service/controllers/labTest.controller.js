@@ -19,11 +19,16 @@ exports.createTest = async (req, res) => {
       return error(res, "Your clinic does not have lab services enabled", 403);
     }
 
-    const { test_name, description, price, report_duration } = req.body;
+    const { test_name, category, description, price, report_duration } = req.body;
     if (!test_name) return error(res, "test_name is required");
 
     const test = await db.LabTest.create({
-      clinic_id: clinicId, test_name, description, price, report_duration
+      clinic_id: clinicId,
+      test_name,
+      category: category || "General",
+      description,
+      price,
+      report_duration
     });
     return success(res, "Lab test added", test, 201);
   } catch (err) {
@@ -34,11 +39,11 @@ exports.createTest = async (req, res) => {
 
 // ------------------------------------------------------------------
 // GET /api/lab/tests  (public — patients browse tests by clinic)
-// Query: clinic_id (required), search, page, limit
+// Query: clinic_id (required), search, category, page, limit
 // ------------------------------------------------------------------
 exports.listTests = async (req, res) => {
   try {
-    const { clinic_id, search, page = 1, limit = 10 } = req.query;
+    const { clinic_id, search, category, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
     if (!clinic_id) return error(res, "clinic_id query parameter is required");
@@ -46,6 +51,7 @@ exports.listTests = async (req, res) => {
     const { Op } = require("sequelize");
     const where  = { clinic_id, status: "Active" };
     if (search) where.test_name = { [Op.like]: `%${search}%` };
+    if (category && category !== "All") where.category = category;
 
     const { count, rows } = await db.LabTest.findAndCountAll({
       where,
@@ -67,11 +73,21 @@ exports.listTests = async (req, res) => {
 exports.myTests = async (req, res) => {
   try {
     const clinicId = req.user.id;
-    const { page = 1, limit = 10 } = req.query;
+
+    // Verify clinic has_lab
+    const clinic = await db.Clinic.findByPk(clinicId);
+    if (!clinic || !clinic.has_lab) {
+      return error(res, "Your clinic does not have lab services enabled", 403);
+    }
+
+    const { category, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
+    const where = { clinic_id: clinicId };
+    if (category && category !== "All") where.category = category;
+
     const { count, rows } = await db.LabTest.findAndCountAll({
-      where:  { clinic_id: clinicId },
+      where,
       limit:  Number(limit),
       offset: Number(offset),
       order:  [["created_at","DESC"]]
@@ -92,7 +108,7 @@ exports.updateTest = async (req, res) => {
     const test = await db.LabTest.findOne({ where: { id: req.params.id, clinic_id: req.user.id } });
     if (!test) return error(res, "Lab test not found", 404);
 
-    const allowed = ["test_name","description","price","report_duration","status"];
+    const allowed = ["test_name","category","description","price","report_duration","status"];
     const updates = {};
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 

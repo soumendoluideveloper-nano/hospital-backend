@@ -292,3 +292,33 @@ exports.deleteSchedule = async (req, res) => {
     return error(res, "Internal server error", 500);
   }
 };
+
+// ------------------------------------------------------------------
+// GET /api/clinic/schedules/today  (clinic admin)
+// ------------------------------------------------------------------
+exports.getTodaySchedules = async (req, res) => {
+  try {
+    const clinicId = req.user.id;
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const todayDayName = daysOfWeek[new Date().getDay()];
+
+    const schedules = await db.DoctorSchedule.findAll({
+      where: { day: todayDayName },
+      include: [
+        {
+          model: db.Doctor,
+          as: "doctor",
+          where: { clinic_id: clinicId, status: "Active" },
+          attributes: ["id", "name", "specialization", "profile_image", "status"]
+        }
+      ],
+      order: [["start_time", "ASC"]]
+    });
+
+    return success(res, "Today's schedules fetched", schedules);
+  } catch (err) {
+    console.error("[schedule.getTodaySchedules]", err);
+    return error(res, "Internal server error", 500);
+  }
+};
+

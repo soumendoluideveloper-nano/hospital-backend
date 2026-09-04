@@ -85,6 +85,11 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: false,
         comment:      "Whether this clinic offers lab test services"
       },
+      profile_views: {
+        type:         DataTypes.INTEGER.UNSIGNED,
+        defaultValue: 0,
+        comment:      "Total clinic profile views / visits"
+      },
       status: {
         type:         DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active"

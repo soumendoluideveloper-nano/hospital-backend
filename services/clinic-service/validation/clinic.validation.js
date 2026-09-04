@@ -51,10 +51,8 @@ exports.updateProfileSchema = Joi.object({
   email: Joi.string()
     .trim()
     .email()
+    .allow(null, "")
     .messages({
-      "string.empty":
-        "Email cannot be empty",
-
       "string.email":
         "Please enter a valid email address",
     }),
@@ -62,16 +60,15 @@ exports.updateProfileSchema = Joi.object({
   registration_no: Joi.string()
     .trim()
     .max(100)
+    .allow(null, "")
     .messages({
-      "string.empty":
-        "Registration number cannot be empty",
-
       "string.max":
         "Registration number must not exceed 100 characters",
     }),
 
   address: Joi.string()
     .trim()
+    .allow(null, "")
     .messages({
       "string.empty":
         "Address cannot be empty",
@@ -80,10 +77,8 @@ exports.updateProfileSchema = Joi.object({
   city: Joi.string()
     .trim()
     .max(100)
+    .allow(null, "")
     .messages({
-      "string.empty":
-        "City cannot be empty",
-
       "string.max":
         "City must not exceed 100 characters",
     }),
@@ -91,10 +86,8 @@ exports.updateProfileSchema = Joi.object({
   state: Joi.string()
     .trim()
     .max(100)
+    .allow(null, "")
     .messages({
-      "string.empty":
-        "State cannot be empty",
-
       "string.max":
         "State must not exceed 100 characters",
     }),
@@ -102,21 +95,30 @@ exports.updateProfileSchema = Joi.object({
   country: Joi.string()
     .trim()
     .max(100)
+    .allow(null, "")
     .messages({
-      "string.empty":
-        "Country cannot be empty",
-
       "string.max":
         "Country must not exceed 100 characters",
     }),
 
+  pincode: Joi.string()
+    .trim()
+    .max(20)
+    .allow(null, "")
+    .messages({
+      "string.max":
+        "Pincode must not exceed 20 characters",
+    }),
+
   latitude: Joi.number()
+    .allow(null, "")
     .messages({
       "number.base":
         "Latitude must be a valid number",
     }),
 
   longitude: Joi.number()
+    .allow(null, "")
     .messages({
       "number.base":
         "Longitude must be a valid number",
@@ -124,13 +126,16 @@ exports.updateProfileSchema = Joi.object({
 
   description: Joi.string()
     .trim()
-    .allow(null)
+    .allow(null, "")
     .messages({
-      "string.empty":
-        "Description cannot be empty. Omit this field to keep the existing value",
+      "string.max":
+        "Description is too long",
     }),
 
   has_lab: Joi.boolean()
+    .truthy(1, "1", "true")
+    .falsy(0, "0", "false")
+    .allow(null)
     .messages({
       "boolean.base":
         "Laboratory availability must be true or false",

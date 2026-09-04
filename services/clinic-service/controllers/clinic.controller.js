@@ -11,11 +11,11 @@ const { updateProfileSchema, changePasswordSchema } = require("../validation/cli
 
 // ------------------------------------------------------------------
 // GET /api/clinic/list  (public — patient-facing)
-// Query: city, state, country, has_lab, search, page, limit
+// Query: city, state, country, has_lab, search, latitude, longitude, radius_km, page, limit
 // ------------------------------------------------------------------
 exports.listClinics = async (req, res) => {
   try {
-    const { city, state, country, has_lab, search, page = 1, limit = 10 } = req.query;
+    const { city, state, country, has_lab, search, latitude, longitude, radius_km, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
     const where = { status: "Active" };
@@ -25,12 +25,39 @@ exports.listClinics = async (req, res) => {
     if (has_lab !== undefined) where.has_lab = has_lab === "true";
     if (search)  where.name    = { [Op.like]: `%${search}%` };
 
+    let attributes = { exclude: ["password", "token"] };
+    let order = [["created_at", "DESC"]];
+
+    if (latitude && longitude && !isNaN(Number(latitude)) && !isNaN(Number(longitude))) {
+      const userLat = Number(latitude);
+      const userLng = Number(longitude);
+
+      // Haversine formula in kilometers
+      const distanceFormula = `(6371 * acos(least(1.0, greatest(-1.0, cos(radians(${userLat})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${userLng})) + sin(radians(${userLat})) * sin(radians(latitude))))))`;
+
+      attributes = {
+        include: [
+          [db.sequelize.literal(distanceFormula), "distance_km"]
+        ],
+        exclude: ["password", "token"]
+      };
+
+      if (radius_km && !isNaN(Number(radius_km))) {
+        where[Op.and] = db.sequelize.literal(`${distanceFormula} <= ${Number(radius_km)}`);
+      }
+
+      order = [
+        [db.sequelize.literal("(distance_km IS NULL)"), "ASC"],
+        [db.sequelize.literal("distance_km"), "ASC"]
+      ];
+    }
+
     const { count, rows } = await db.Clinic.findAndCountAll({
       where,
-      attributes: { exclude: ["password", "token"] },
+      attributes,
       limit: Number(limit),
       offset: Number(offset),
-      order: [["created_at", "DESC"]]
+      order
     });
 
     return paginated(res, "Clinics fetched", rows, count, page, limit);
@@ -59,6 +86,12 @@ exports.getClinicById = async (req, res) => {
       ]
     });
     if (!clinic) return error(res, "Clinic not found1", 404);
+
+    // Increment profile views asynchronously without slowing response
+    db.Clinic.increment("profile_views", { by: 1, where: { id: clinic.id } }).catch(err => {
+      console.error("[clinic.getClinicById] Failed to increment profile_views:", err.message);
+    });
+
     return success(res, "Clinic fetched", clinic);
   } catch (err) {
     console.error("[clinic.getClinicById]", err);
@@ -69,7 +102,7 @@ exports.getClinicById = async (req, res) => {
 // ------------------------------------------------------------------
 // PUT /api/clinic/profile  (clinic admin — protected)
 // Body (JSON): any subset of { name, owner_name, email,
-//   registration_no, address, city, state, country,
+//   registration_no, address, city, state, country, pincode,
 //   latitude, longitude, description, has_lab }
 // Rules:
 //   • Only fields present in the body are updated.
@@ -92,7 +125,7 @@ exports.updateProfile = async (req, res) => {
     const allowedFields = [
       "name", "owner_name", "email",
       "registration_no", "address", "city",
-      "state", "country", "latitude", "longitude",
+      "state", "country", "pincode", "latitude", "longitude",
       "description", "has_lab"
     ];
 
@@ -136,18 +169,51 @@ exports.updateProfile = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const clinicId = req.user.id;
-    const [doctors, appointments, enquiries, calls] = await Promise.all([
-      db.Doctor.count({ where: { clinic_id: clinicId, status: "Active" } }),
-      db.Appointment.count({ where: { clinic_id: clinicId } }),
-      db.Enquiry.count({ where: { clinic_id: clinicId, status: "Pending" } }),
-      db.CallLog.count({ where: { clinic_id: clinicId } })
+
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const todayDayName = daysOfWeek[new Date().getDay()];
+    const todayDateStr = new Date().toISOString().split("T")[0];
+
+    const [doctorsCount, schedulesCount, patientsCount, clinic] = await Promise.all([
+      // 1. Total Active Doctors belonging to authenticated clinic
+      db.Doctor.count({
+        where: { clinic_id: clinicId, status: "Active" }
+      }),
+
+      // 2. Today's active Doctor Schedule sessions for active doctors in this clinic
+      db.DoctorSchedule.count({
+        where: { day: todayDayName, is_available: true },
+        include: [{
+          model: db.Doctor,
+          as: "doctor",
+          where: { clinic_id: clinicId, status: "Active" },
+          required: true
+        }]
+      }),
+
+      // 3. Today's Unique Patients with appointments today for this clinic
+      db.Appointment.count({
+        distinct: true,
+        col: "patient_id",
+        where: {
+          clinic_id: clinicId,
+          appointment_date: todayDateStr,
+          status: { [Op.notIn]: ["Cancelled", "Rejected"] }
+        }
+      }),
+
+      // 4. Authenticated clinic details for profile_views and has_lab permission
+      db.Clinic.findByPk(clinicId, {
+        attributes: ["id", "profile_views", "has_lab"]
+      })
     ]);
 
     return success(res, "Dashboard fetched", {
-      total_doctors:              doctors,
-      total_appointments:         appointments,
-      pending_enquiries:          enquiries,
-      total_calls:                calls
+      total_doctors:    doctorsCount,
+      todays_schedule:  schedulesCount,
+      todays_patients:  patientsCount,
+      profile_views:    clinic ? (clinic.profile_views || 0) : 0,
+      has_lab:          clinic ? Boolean(clinic.has_lab) : false
     });
   } catch (err) {
     console.error("[clinic.getDashboard]", err);

@@ -24,5 +24,8 @@ router.put("/change-password",
   controller.changePassword
 );
 
+// Public clinic details (restricted to numeric IDs so it does not intercept /doctors, /enquiries, etc.)
+router.get("/:id(\\d+)", controller.getClinicById);
+
 module.exports = router;
 

@@ -77,6 +77,13 @@ exports.myBookings = async (req, res) => {
 exports.clinicBookings = async (req, res) => {
   try {
     const clinicId = req.user.id;
+
+    // Verify clinic has_lab
+    const clinic = await db.Clinic.findByPk(clinicId);
+    if (!clinic || !clinic.has_lab) {
+      return error(res, "Your clinic does not have lab services enabled", 403);
+    }
+
     const { status, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
