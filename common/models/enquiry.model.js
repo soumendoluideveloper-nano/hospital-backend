@@ -1,7 +1,7 @@
 /**
  * Enquiry Model
- * A patient sends a text message / question to a clinic or specific doctor.
- * The clinic responds and eventually closes the thread.
+ * A patient selects clinic, doctor, and date/slot, and calls or sends an enquiry.
+ * The clinic can Call, Accept for that day/slot, or Cancel.
  *
  * Table: enquiries
  */
@@ -26,21 +26,33 @@ module.exports = (sequelize, DataTypes) => {
       },
       doctor_id: {
         type:    DataTypes.BIGINT.UNSIGNED,
-        comment: "FK → doctors.id — optional, if directed at a specific doctor"
+        comment: "FK → doctors.id — doctor selected by patient"
+      },
+      appointment_date: {
+        type:    DataTypes.DATEONLY,
+        comment: "Selected date (YYYY-MM-DD)"
+      },
+      appointment_time: {
+        type:    DataTypes.STRING(50),
+        comment: "Selected time (e.g. 10:30 AM)"
+      },
+      slot: {
+        type:    DataTypes.STRING(100),
+        comment: "Doctor schedule slot (e.g. Morning 10:00 AM - 01:00 PM)"
       },
       message: {
         type:      DataTypes.TEXT,
         allowNull: false,
-        comment:   "Patient's enquiry message"
+        comment:   "Patient's enquiry message or call note"
       },
       reply: {
         type:    DataTypes.TEXT,
-        comment: "Clinic / doctor's reply message"
+        comment: "Clinic note / reply"
       },
       status: {
-        type:         DataTypes.ENUM("Pending","Answered","Closed"),
+        type:         DataTypes.STRING(50),
         defaultValue: "Pending",
-        comment:      "Lifecycle state: Pending → Answered → Closed"
+        comment:      "Lifecycle state: Pending, Accepted, Cancelled"
       }
     },
     {

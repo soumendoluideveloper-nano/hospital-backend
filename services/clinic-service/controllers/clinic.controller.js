@@ -101,27 +101,17 @@ exports.getClinicById = async (req, res) => {
 
 // ------------------------------------------------------------------
 // PUT /api/clinic/profile  (clinic admin — protected)
-// Body (JSON): any subset of { name, owner_name, email,
-//   registration_no, address, city, state, country, pincode,
-//   latitude, longitude, description, has_lab }
-// Rules:
-//   • Only fields present in the body are updated.
-//   • Empty strings are rejected — omit the key to keep the current value.
-//   • A multipart upload with field name "logo" replaces the clinic logo.
 // ------------------------------------------------------------------
 exports.updateProfile = async (req, res) => {
   try {
     const clinicId = req.user.id;
     console.log(req.body);
-    // ── 1. Validate incoming body ──────────────────────────────────
     const { error: validErr, value: validated } = updateProfileSchema.validate(req.body, {
-      abortEarly: true,   // stop at first error for a clear message
-      convert:    true    // coerce "true"/"false" strings → booleans, etc.
+      abortEarly: true,
+      convert:    true
     });
     if (validErr) return error(res, validErr.details[0].message, 422);
 
-    // ── 2. Build updates object — only fields explicitly provided ──
-    //   Fields the client did not send are left untouched in the DB.
     const allowedFields = [
       "name", "owner_name", "email",
       "registration_no", "address", "city",
@@ -136,12 +126,10 @@ exports.updateProfile = async (req, res) => {
       }
     });
 
-    // ── 3. Handle optional logo upload ────────────────────────────
     if (req.file) {
       updates.logo = "uploads/" + req.file.path.replace(/\\/g, "/").split("uploads/")[1];
     }
 
-    // ── 4. Nothing to update? Return current profile as-is ────────
     if (Object.keys(updates).length === 0) {
       const current = await db.Clinic.findByPk(clinicId, {
         attributes: { exclude: ["password", "token"] }
@@ -149,7 +137,6 @@ exports.updateProfile = async (req, res) => {
       return success(res, "No changes provided — profile unchanged", current);
     }
 
-    // ── 5. Persist & return updated record ────────────────────────
     await db.Clinic.update(updates, { where: { id: clinicId } });
 
     const updated = await db.Clinic.findByPk(clinicId, {
@@ -171,16 +158,25 @@ exports.getDashboard = async (req, res) => {
     const clinicId = req.user.id;
 
     const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const todayDayName = daysOfWeek[new Date().getDay()];
-    const todayDateStr = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const todayDayName = daysOfWeek[now.getDay()];
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const todayDateStr = `${year}-${month}-${day}`;
 
-    const [doctorsCount, schedulesCount, patientsCount, clinic] = await Promise.all([
-      // 1. Total Active Doctors belonging to authenticated clinic
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [doctorsCount, schedulesCount, apptPatients, acceptedEnquiries, clinic] = await Promise.all([
+      // 1. Total Active Doctors
       db.Doctor.count({
         where: { clinic_id: clinicId, status: "Active" }
       }),
 
-      // 2. Today's active Doctor Schedule sessions for active doctors in this clinic
+      // 2. Today's active Doctor Schedule sessions
       db.DoctorSchedule.count({
         where: { day: todayDayName, is_available: true },
         include: [{
@@ -191,27 +187,44 @@ exports.getDashboard = async (req, res) => {
         }]
       }),
 
-      // 3. Today's Unique Patients with appointments today for this clinic
-      db.Appointment.count({
-        distinct: true,
-        col: "patient_id",
+      // 3a. Appointments today
+      db.Appointment.findAll({
+        attributes: ["patient_id"],
         where: {
           clinic_id: clinicId,
           appointment_date: todayDateStr,
           status: { [Op.notIn]: ["Cancelled", "Rejected"] }
-        }
+        },
+        raw: true
       }),
 
-      // 4. Authenticated clinic details for profile_views and has_lab permission
+      // 3b. Accepted / Confirmed Enquiries for today
+      db.Enquiry.findAll({
+        attributes: ["patient_id"],
+        where: {
+          clinic_id: clinicId,
+          status: { [Op.in]: ["Accepted", "Confirmed"] },
+          appointment_date: todayDateStr
+        },
+        raw: true
+      }),
+
+      // 4. Authenticated clinic details
       db.Clinic.findByPk(clinicId, {
         attributes: ["id", "profile_views", "has_lab"]
       })
     ]);
 
+    // Calculate unique today's patients count
+    const uniquePatientIds = new Set([
+      ...(apptPatients || []).map(p => String(p.patient_id)),
+      ...(acceptedEnquiries || []).map(p => String(p.patient_id))
+    ]);
+
     return success(res, "Dashboard fetched", {
       total_doctors:    doctorsCount,
       todays_schedule:  schedulesCount,
-      todays_patients:  patientsCount,
+      todays_patients:  uniquePatientIds.size,
       profile_views:    clinic ? (clinic.profile_views || 0) : 0,
       has_lab:          clinic ? Boolean(clinic.has_lab) : false
     });
@@ -223,13 +236,11 @@ exports.getDashboard = async (req, res) => {
 
 // ------------------------------------------------------------------
 // PUT /api/clinic/change-password  (clinic admin — protected)
-// Body: { current_password, new_password, confirm_password }
 // ------------------------------------------------------------------
 exports.changePassword = async (req, res) => {
   try {
     const clinicId = req.user.id;
 
-    // ── 1. Validate request body ───────────────────────────────────
     const { error: validErr, value } = changePasswordSchema.validate(req.body, {
       abortEarly: true
     });
@@ -237,17 +248,14 @@ exports.changePassword = async (req, res) => {
 
     const { current_password, new_password } = value;
 
-    // ── 2. Fetch clinic WITH password field ───────────────────────
     const clinic = await db.Clinic.findByPk(clinicId);
     if (!clinic) return error(res, "Clinic not found2", 404);
 
-    // ── 3. Verify current password ────────────────────────────────
     const isMatch = await bcrypt.compare(current_password, clinic.password);
     if (!isMatch) {
       return error(res, "Current password is incorrect", 401);
     }
 
-    // ── 4. Hash & save new password ───────────────────────────────
     const hashed = await bcrypt.hash(new_password, 10);
     await db.Clinic.update({ password: hashed }, { where: { id: clinicId } });
 
