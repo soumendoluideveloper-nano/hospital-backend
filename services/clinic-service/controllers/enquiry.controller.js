@@ -21,16 +21,20 @@ function getLocalDateString(d = new Date()) {
 exports.listEnquiries = async (req, res) => {
   try {
     const clinicId = req.user.id;
-    const { status, doctor_id, search, page = 1, limit = 20 } = req.query;
+    const {
+      status,
+      doctor_id,
+      specialization,
+      day,
+      date,
+      search,
+      page = 1,
+      limit = 50
+    } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
     const where = { clinic_id: clinicId };
     const todayDateStr = getLocalDateString();
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
 
     if (status === "TODAY") {
       // Strictly today's accepted patients (appointment_date is today)
@@ -40,8 +44,30 @@ exports.listEnquiries = async (req, res) => {
       where.status = status;
     }
 
-    if (doctor_id) {
-      where.doctor_id = doctor_id;
+    if (doctor_id && doctor_id !== "ALL") {
+      where.doctor_id = Number(doctor_id);
+    }
+
+    if (specialization && specialization !== "ALL") {
+      where["$doctor.specialization$"] = { [Op.like]: `%${specialization.trim()}%` };
+    }
+
+    if (date) {
+      where.appointment_date = date;
+    } else if (day && day !== "ALL") {
+      const lowerDay = day.toLowerCase();
+      if (lowerDay === "today") {
+        where.appointment_date = todayDateStr;
+      } else if (lowerDay === "tomorrow") {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        where.appointment_date = getLocalDateString(tomorrow);
+      } else {
+        where[Op.or] = [
+          { appointment_date: day },
+          { slot: { [Op.like]: `%${day}%` } }
+        ];
+      }
     }
 
     if (search && search.trim()) {
