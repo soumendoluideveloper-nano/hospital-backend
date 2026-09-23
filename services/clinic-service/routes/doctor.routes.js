@@ -15,8 +15,9 @@ router.put   ("/doctors/:id(\\d+)", auth({ roles: ["clinic"] }), validate(update
 router.delete("/doctors/:id(\\d+)", auth({ roles: ["clinic"] }), controller.removeDoctor);
 
 // ---- Public ----
-router.get("/doctors/public",               controller.listAllPublicDoctors);
-router.get("/doctors/public/:clinicId(\\d+)", controller.listPublicDoctors);
-router.get("/doctors/:id(\\d+)",            controller.getDoctorById);
+router.get("/doctors/public",                                           controller.listAllPublicDoctors);
+router.get("/doctors/public/:clinicId(\\d+)",                           controller.listPublicDoctors);
+router.get("/doctors/:id(\\d+)",                                        controller.getDoctorById);
+router.get("/doctors/:doctorId(\\d+)/clinics/:clinicId(\\d+)/schedule", controller.getDoctorClinicScheduleAndSlots);
 
 module.exports = router;

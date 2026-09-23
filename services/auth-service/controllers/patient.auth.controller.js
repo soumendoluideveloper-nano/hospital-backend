@@ -32,7 +32,10 @@ const {
   sendOtpSchema,
   verifyOtpSchema,
   completePatientSchema,
-  patientLoginSchema
+  patientLoginSchema,
+  forgotPasswordSendOtpSchema,
+  forgotPasswordVerifyOtpSchema,
+  forgotPasswordResetSchema
 } = require("../validation/patient.validation");
 
 // ── Utility: generate 6-digit OTP ────────────────────────────────────
@@ -232,3 +235,131 @@ exports.getProfile = async (req, res) => {
     return error(res, "Internal server error", 500);
   }
 };
+
+// ════════════════════════════════════════════════════════════════════
+// FORGOT PASSWORD — STEP 1: SEND OTP
+// POST /api/auth/patient/forgot-password/send-otp
+// ════════════════════════════════════════════════════════════════════
+exports.forgotPasswordSendOtp = async (req, res) => {
+  try {
+    const { error: validErr } = forgotPasswordSendOtpSchema.validate(req.body);
+    if (validErr) return error(res, validErr.details[0].message);
+
+    const { phone } = req.body;
+
+    // Verify patient exists
+    const patient = await db.Patient.findOne({ where: { phone } });
+    if (!patient) {
+      return error(res, "No registered account found with this mobile number.", 404);
+    }
+    if (patient.status === "Inactive") {
+      return error(res, "Your account has been deactivated. Please contact support.", 403);
+    }
+
+    // Delete any previous unused OTP for this phone
+    await db.OtpVerification.destroy({ where: { phone, type: "patient", is_used: false } });
+
+    const otp = generateOtp();
+
+    await db.OtpVerification.create({
+      phone,
+      password: "",
+      otp,
+      type: "patient",
+      expires_at: otpExpiry()
+    });
+
+    try {
+      await sendSMS(phone, otp);
+      console.log(`[OTP Forgot Password] Patient ${phone} → ${otp}`);
+    } catch (smsErr) {
+      console.error("[SMS] Failed to send OTP:", smsErr.message);
+      return error(res, "Failed to send OTP. Please try again.", 503);
+    }
+
+    return success(res, "OTP sent successfully to your mobile number.", { phone });
+  } catch (err) {
+    console.error("[patient.forgotPasswordSendOtp]", err);
+    return error(res, "Internal server error", 500);
+  }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// FORGOT PASSWORD — STEP 2: VERIFY OTP
+// POST /api/auth/patient/forgot-password/verify-otp
+// ════════════════════════════════════════════════════════════════════
+exports.forgotPasswordVerifyOtp = async (req, res) => {
+  try {
+    const { error: validErr } = forgotPasswordVerifyOtpSchema.validate(req.body);
+    if (validErr) return error(res, validErr.details[0].message);
+
+    const { phone, otp } = req.body;
+
+    const record = await db.OtpVerification.findOne({
+      where: { phone, type: "patient", is_used: false },
+      order: [["created_at", "DESC"]]
+    });
+
+    if (!record) {
+      return error(res, "No pending OTP found for this number. Please request a new OTP.", 404);
+    }
+    if (record.otp !== otp) {
+      return error(res, "Invalid OTP. Please try again.", 400);
+    }
+    if (new Date() > new Date(record.expires_at)) {
+      return error(res, "OTP has expired. Please request a new OTP.", 400);
+    }
+
+    // Mark OTP as used
+    await record.update({ is_used: true });
+
+    // Issue a short-lived temp token (15 min) for reset
+    const temp_token = signToken(
+      { phone, role: "reset_password", otp_record_id: record.id },
+      "15m"
+    );
+
+    return success(res, "OTP verified successfully. You may now reset your password.", { temp_token });
+  } catch (err) {
+    console.error("[patient.forgotPasswordVerifyOtp]", err);
+    return error(res, "Internal server error", 500);
+  }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// FORGOT PASSWORD — STEP 3: RESET PASSWORD
+// POST /api/auth/patient/forgot-password/reset
+// Headers: Authorization: Bearer <temp_token>
+// ════════════════════════════════════════════════════════════════════
+exports.forgotPasswordReset = async (req, res) => {
+  try {
+    const { phone, otp_record_id } = req.user;
+
+    const { error: validErr } = forgotPasswordResetSchema.validate(req.body);
+    if (validErr) return error(res, validErr.details[0].message);
+
+    const patient = await db.Patient.findOne({ where: { phone } });
+    if (!patient) {
+      return error(res, "Patient account not found.", 404);
+    }
+
+    const { password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.Patient.update(
+      { password: hashedPassword },
+      { where: { id: patient.id } }
+    );
+
+    // Clean up OTP record if present
+    if (otp_record_id) {
+      await db.OtpVerification.destroy({ where: { id: otp_record_id } });
+    }
+
+    return success(res, "Password reset successfully. Please login with your new password.");
+  } catch (err) {
+    console.error("[patient.forgotPasswordReset]", err);
+    return error(res, "Internal server error", 500);
+  }
+};
+

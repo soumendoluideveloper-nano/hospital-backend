@@ -14,6 +14,92 @@ function getLocalDateString(d = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function normalizeTimeTo24h(timeStr) {
+  if (!timeStr || typeof timeStr !== "string") return null;
+  const trimmed = timeStr.trim();
+  const match12 = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
+  if (match12) {
+    let hour = parseInt(match12[1], 10);
+    const min = match12[2];
+    const period = match12[3].toUpperCase();
+    if (hour < 1 || hour > 12) return null;
+    if (period === "AM" && hour === 12) hour = 0;
+    if (period === "PM" && hour < 12) hour += 12;
+    return `${String(hour).padStart(2, "0")}:${min}:00`;
+  }
+  const match24 = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (match24) {
+    const hour = parseInt(match24[1], 10);
+    const min = parseInt(match24[2], 10);
+    if (hour < 0 || hour > 23 || min < 0 || min > 59) return null;
+    const sec = match24[3] ? String(parseInt(match24[3], 10)).padStart(2, "0") : "00";
+    return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}:${sec}`;
+  }
+  return timeStr;
+}
+
+function formatSlotAsRange(slotStr, apptTimeStr, durationMins = 30) {
+  if (slotStr && typeof slotStr === "string" && slotStr.includes("-")) {
+    return slotStr.trim();
+  }
+  let candidate = slotStr || apptTimeStr;
+  if (!candidate || typeof candidate !== "string") return slotStr || null;
+
+  let timeOnly = candidate.trim();
+  const parenMatch = timeOnly.match(/\(([^)]+)\)/);
+  if (parenMatch) {
+    timeOnly = parenMatch[1].trim();
+  }
+
+  let startHour = 0;
+  let startMin = 0;
+  let valid = false;
+
+  const match12 = timeOnly.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
+  if (match12) {
+    let hour = parseInt(match12[1], 10);
+    const min = parseInt(match12[2], 10);
+    const period = match12[3].toUpperCase();
+    if (hour >= 1 && hour <= 12 && min >= 0 && min <= 59) {
+      if (period === "AM" && hour === 12) hour = 0;
+      if (period === "PM" && hour < 12) hour += 12;
+      startHour = hour;
+      startMin = min;
+      valid = true;
+    }
+  }
+
+  if (!valid) {
+    const match24 = timeOnly.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (match24) {
+      const hour = parseInt(match24[1], 10);
+      const min = parseInt(match24[2], 10);
+      if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
+        startHour = hour;
+        startMin = min;
+        valid = true;
+      }
+    }
+  }
+
+  if (!valid) {
+    return slotStr || null;
+  }
+
+  const startPeriod = startHour >= 12 ? "PM" : "AM";
+  const startDisp = startHour % 12 || 12;
+  const start12 = `${String(startDisp).padStart(2, "0")}:${String(startMin).padStart(2, "0")} ${startPeriod}`;
+
+  const totalMins = startHour * 60 + startMin + durationMins;
+  const endHour = Math.floor(totalMins / 60) % 24;
+  const endMin = totalMins % 60;
+  const endPeriod = endHour >= 12 ? "PM" : "AM";
+  const endDisp = endHour % 12 || 12;
+  const end12 = `${String(endDisp).padStart(2, "0")}:${String(endMin).padStart(2, "0")} ${endPeriod}`;
+
+  return `${start12} - ${end12}`;
+}
+
 // ------------------------------------------------------------------
 // GET /api/clinic/enquiries  (clinic admin)
 // Query: status, search, page, limit
@@ -308,14 +394,16 @@ exports.logCallEnquiry = async (req, res) => {
     }
 
     const todayDateStr = getLocalDateString();
+    const formattedApptTime = appointment_time ? normalizeTimeTo24h(appointment_time) : null;
+    const formattedSlot = formatSlotAsRange(slot, appointment_time);
 
     const enquiry = await db.Enquiry.create({
       patient_id: finalPatientId,
       clinic_id,
       doctor_id: doctor_id || null,
       appointment_date: appointment_date || todayDateStr,
-      appointment_time: appointment_time || null,
-      slot: slot || null,
+      appointment_time: formattedApptTime || appointment_time || null,
+      slot: formattedSlot,
       message: message || "Patient requested doctor consultation call.",
       status: "Pending"
     });

@@ -55,6 +55,16 @@ exports.listClinics = async (req, res) => {
     const { count, rows } = await db.Clinic.findAndCountAll({
       where,
       attributes,
+      include: [
+        {
+          model:      db.Doctor,
+          as:         "doctors",
+          where:      { status: "Active" },
+          required:   false,
+          attributes: ["id", "name", "specialization", "profile_image"]
+        }
+      ],
+      distinct: true,
       limit: Number(limit),
       offset: Number(offset),
       order

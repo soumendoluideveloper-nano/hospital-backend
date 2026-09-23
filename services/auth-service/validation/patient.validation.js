@@ -41,3 +41,19 @@ exports.patientLoginSchema = Joi.object({
   phone:    Joi.string().optional(),
   password: Joi.string().required()
 }).or("email", "phone");
+
+// ── Forgot Password ──────────────────────────────────────────────────
+exports.forgotPasswordSendOtpSchema = Joi.object({
+  phone: Joi.string().min(7).max(20).required()
+});
+
+exports.forgotPasswordVerifyOtpSchema = Joi.object({
+  phone: Joi.string().min(7).max(20).required(),
+  otp:   Joi.string().length(6).required()
+});
+
+exports.forgotPasswordResetSchema = Joi.object({
+  password:         Joi.string().min(6).required(),
+  confirm_password: Joi.string().valid(Joi.ref("password")).optional()
+});
+

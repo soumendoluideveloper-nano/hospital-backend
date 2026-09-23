@@ -11,7 +11,9 @@ router.get   ("/appointments",             auth({ roles: ["patient"] }), control
 router.get   ("/appointments/:id",         auth({ roles: ["patient"] }), controller.getAppointmentById);
 router.patch ("/appointments/:id/cancel",  auth({ roles: ["patient"] }), controller.cancelAppointment);
 
-router.post("/enquiries",  auth({ roles: ["patient"] }), controller.sendEnquiry);
-router.get ("/enquiries",  auth({ roles: ["patient"] }), controller.listEnquiries);
+router.post ("/enquiries",             auth({ roles: ["patient"] }), controller.sendEnquiry);
+router.get  ("/enquiries",             auth({ roles: ["patient"] }), controller.listEnquiries);
+router.get  ("/enquiries/:id",         auth({ roles: ["patient"] }), controller.getEnquiryById);
+router.patch("/enquiries/:id/cancel",  auth({ roles: ["patient"] }), controller.cancelEnquiry);
 
 module.exports = router;

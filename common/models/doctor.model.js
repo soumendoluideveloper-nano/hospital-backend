@@ -75,12 +75,14 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   Doctor.associate = (db) => {
-    Doctor.belongsTo(db.Clinic,       { foreignKey: "clinic_id", as: "clinic"         });
-    Doctor.hasMany(db.DoctorSchedule, { foreignKey: "doctor_id", as: "schedules"      });
-    Doctor.hasMany(db.Appointment,    { foreignKey: "doctor_id", as: "appointments"   });
-    Doctor.hasMany(db.Enquiry,        { foreignKey: "doctor_id", as: "enquiries"      });
-    Doctor.hasMany(db.CallLog,        { foreignKey: "doctor_id", as: "call_logs"      });
-    Doctor.hasMany(db.DoctorReview,   { foreignKey: "doctor_id", as: "reviews"        });
+    Doctor.belongsTo(db.Clinic,         { foreignKey: "clinic_id", as: "clinic"              });
+    Doctor.hasMany(db.DoctorClinic,     { foreignKey: "doctor_id", as: "doctor_clinics"       });
+    Doctor.belongsToMany(db.Clinic,     { through: db.DoctorClinic, foreignKey: "doctor_id", otherKey: "clinic_id", as: "affiliated_clinics" });
+    Doctor.hasMany(db.DoctorSchedule,   { foreignKey: "doctor_id", as: "schedules"           });
+    Doctor.hasMany(db.Appointment,      { foreignKey: "doctor_id", as: "appointments"        });
+    Doctor.hasMany(db.Enquiry,          { foreignKey: "doctor_id", as: "enquiries"           });
+    Doctor.hasMany(db.CallLog,          { foreignKey: "doctor_id", as: "call_logs"           });
+    Doctor.hasMany(db.DoctorReview,     { foreignKey: "doctor_id", as: "reviews"             });
   };
 
   return Doctor;

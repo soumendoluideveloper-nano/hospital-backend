@@ -14,6 +14,7 @@ router.put("/profile",
   upload.single("profile_image"),
   controller.updateProfile
 );
+router.put("/change-password", auth({ roles: ["patient"] }), controller.changePassword);
 router.get("/notifications", auth({ roles: ["patient"] }), controller.getNotifications);
 
 module.exports = router;
