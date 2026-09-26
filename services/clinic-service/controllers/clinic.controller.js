@@ -23,7 +23,15 @@ exports.listClinics = async (req, res) => {
     if (state)   where.state   = { [Op.like]: `%${state}%` };
     if (country) where.country = { [Op.like]: `%${country}%` };
     if (has_lab !== undefined) where.has_lab = has_lab === "true";
-    if (search)  where.name    = { [Op.like]: `%${search}%` };
+    if (search && search.trim()) {
+      const s = `%${search.trim()}%`;
+      where[Op.or] = [
+        { name: { [Op.like]: s } },
+        { city: { [Op.like]: s } },
+        { address: { [Op.like]: s } },
+        { state: { [Op.like]: s } }
+      ];
+    }
 
     let attributes = { exclude: ["password", "token"] };
     let order = [["created_at", "DESC"]];
@@ -95,14 +103,21 @@ exports.getClinicById = async (req, res) => {
         }
       ]
     });
-    if (!clinic) return error(res, "Clinic not found1", 404);
+    if (!clinic) return error(res, "Clinic not found", 404);
+
+    const cJson = clinic.toJSON();
+    const docMap = new Map();
+    (cJson.doctors || []).forEach(d => docMap.set(d.id, d));
+    (cJson.affiliated_doctors || []).forEach(d => docMap.set(d.id, d));
+    cJson.doctors = Array.from(docMap.values());
+    delete cJson.affiliated_doctors;
 
     // Increment profile views asynchronously without slowing response
     db.Clinic.increment("profile_views", { by: 1, where: { id: clinic.id } }).catch(err => {
       console.error("[clinic.getClinicById] Failed to increment profile_views:", err.message);
     });
 
-    return success(res, "Clinic fetched", clinic);
+    return success(res, "Clinic fetched", cJson);
   } catch (err) {
     console.error("[clinic.getClinicById]", err);
     return error(res, "Internal server error", 500);

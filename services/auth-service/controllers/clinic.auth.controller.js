@@ -68,8 +68,7 @@ exports.sendOtp = async (req, res) => {
 
     // Send OTP via configured SMS gateway
     try {
-      // await sendSMS(phone, otp);
-      // ⚠️  Production: send OTP via SMS
+      await sendSMS(phone, otp);
       console.log(`[OTP] Clinic ${phone} → ${otp}`);
     } catch (smsErr) {
       console.error("[SMS] Failed to send OTP:", smsErr.message);

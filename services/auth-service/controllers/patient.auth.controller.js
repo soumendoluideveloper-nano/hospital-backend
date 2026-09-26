@@ -208,10 +208,13 @@ exports.login = async (req, res) => {
     if (!match) return error(res, "Invalid credentials", 401);
 
     const token = signToken({ id: patient.id, role: "patient", phone: patient.phone });
-    await db.Patient.update({ token }, { where: { id: patient.id } });
+    const updatePayload = { token };
+    if (req.body.push_token) updatePayload.push_token = req.body.push_token;
+    await db.Patient.update(updatePayload, { where: { id: patient.id } });
 
     patient.password = undefined;
     patient.token    = token;
+    if (req.body.push_token) patient.push_token = req.body.push_token;
 
     return success(res, "Login successful", { token, patient });
   } catch (err) {

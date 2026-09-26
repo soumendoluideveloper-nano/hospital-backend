@@ -14,7 +14,10 @@ router.put("/profile",
   upload.single("profile_image"),
   controller.updateProfile
 );
-router.put("/change-password", auth({ roles: ["patient"] }), controller.changePassword);
+router.post("/push-token", auth({ roles: ["patient"] }), controller.savePushToken);
 router.get("/notifications", auth({ roles: ["patient"] }), controller.getNotifications);
+router.get("/notifications/unread-count", auth({ roles: ["patient"] }), controller.getUnreadCount);
+router.put("/notifications/read-all", auth({ roles: ["patient"] }), controller.markNotificationsRead);
+router.delete("/notifications", auth({ roles: ["patient"] }), controller.clearNotifications);
 
 module.exports = router;

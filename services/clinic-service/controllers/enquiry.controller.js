@@ -6,6 +6,7 @@
 const { Op } = require("sequelize");
 const db = require("../../../common/models");
 const { success, error, paginated } = require("../../../common/helpers/response.helper");
+const { sendPatientPushNotification, sendClinicPushNotification } = require("../../../common/helpers/pushNotification.helper");
 
 function getLocalDateString(d = new Date()) {
   const year = d.getFullYear();
@@ -283,13 +284,38 @@ exports.acceptEnquiry = async (req, res) => {
       reply: `Accepted for consultation on ${finalDate}${enquiry.slot ? ` (${enquiry.slot})` : ""}`
     });
 
-    // Notify patient
+    // Fetch clinic & doctor info for personalized push message
+    const [clinic, doctor] = await Promise.all([
+      db.Clinic.findByPk(req.user.id, { attributes: ["name"] }).catch(() => null),
+      finalDoctorId ? db.Doctor.findByPk(finalDoctorId, { attributes: ["name"] }).catch(() => null) : null
+    ]);
+
+    const clinicName = clinic?.name || "Clinic";
+    const doctorName = doctor?.name ? `with Dr. ${doctor.name}` : "";
+    const pushTitle = "Enquiry Approved! 🩺";
+    const pushBody = `Your consultation enquiry ${doctorName} at ${clinicName} has been approved for ${finalDate}${enquiry.slot ? ` (${enquiry.slot})` : ""}.`.replace(/\s+/g, " ");
+
+    // Notify patient in DB
     await db.Notification.create({
       receiver_type: "Patient",
       receiver_id: enquiry.patient_id,
-      title: "Enquiry Accepted!",
-      message: `Your doctor enquiry has been accepted for ${finalDate}${enquiry.slot ? ` (${enquiry.slot})` : ""}.`
+      title: pushTitle,
+      message: pushBody
     }).catch(e => console.error("Notification error:", e.message));
+
+    // Send Real-time Push Notification to user's phone
+    sendPatientPushNotification(enquiry.patient_id, {
+      title: pushTitle,
+      body: pushBody,
+      data: {
+        enquiryId: String(enquiry.id),
+        type: "ENQUIRY_ACCEPTED",
+        status: "Accepted",
+        appointmentDate: finalDate,
+        appointmentTime: formattedTime,
+        clinicId: String(req.user.id)
+      }
+    }).catch(e => console.error("Push notification error:", e.message));
 
     return success(res, "Enquiry accepted successfully", { enquiry, appointment });
   } catch (err) {
@@ -308,20 +334,40 @@ exports.cancelEnquiry = async (req, res) => {
     });
     if (!enquiry) return error(res, "Enquiry not found", 404);
 
-    const cancelMsg = req.body.reason ? `Cancelled: ${req.body.reason}` : "Cancelled by clinic";
+    const cancelReason = req.body.reason ? req.body.reason.trim() : "";
+    const cancelMsg = cancelReason ? `Cancelled: ${cancelReason}` : "Cancelled by clinic";
 
     await enquiry.update({
       status: "Cancelled",
       reply: cancelMsg
     });
 
-    // Notify patient
+    const clinic = await db.Clinic.findByPk(req.user.id, { attributes: ["name"] }).catch(() => null);
+    const clinicName = clinic?.name || "Clinic";
+    const pushTitle = "Enquiry Cancelled ❌";
+    const pushBody = cancelReason
+      ? `Your enquiry at ${clinicName} has been cancelled: ${cancelReason}`
+      : `Your enquiry at ${clinicName} has been cancelled.`;
+
+    // Notify patient in DB
     await db.Notification.create({
       receiver_type: "Patient",
       receiver_id: enquiry.patient_id,
-      title: "Enquiry Cancelled",
-      message: cancelMsg
+      title: pushTitle,
+      message: pushBody
     }).catch(e => console.error("Notification error:", e.message));
+
+    // Send Real-time Push Notification to user's phone
+    sendPatientPushNotification(enquiry.patient_id, {
+      title: pushTitle,
+      body: pushBody,
+      data: {
+        enquiryId: String(enquiry.id),
+        type: "ENQUIRY_CANCELLED",
+        status: "Cancelled",
+        clinicId: String(req.user.id)
+      }
+    }).catch(e => console.error("Push notification error:", e.message));
 
     return success(res, "Enquiry cancelled successfully", enquiry);
   } catch (err) {
@@ -346,6 +392,42 @@ exports.updateStatus = async (req, res) => {
     if (reply !== undefined) updates.reply = reply;
 
     await enquiry.update(updates);
+
+    if (status) {
+      const clinic = await db.Clinic.findByPk(req.user.id, { attributes: ["name"] }).catch(() => null);
+      const clinicName = clinic?.name || "Clinic";
+      const isApproved = status === "Accepted" || status === "Confirmed";
+      const isCancelled = status === "Cancelled" || status === "Rejected";
+
+      const pushTitle = isApproved
+        ? "Enquiry Approved! 🩺"
+        : isCancelled
+        ? "Enquiry Cancelled ❌"
+        : `Enquiry Status: ${status} ℹ️`;
+
+      const pushBody = reply || `Your enquiry status at ${clinicName} has been updated to ${status}.`;
+
+      // Notify patient in DB
+      await db.Notification.create({
+        receiver_type: "Patient",
+        receiver_id: enquiry.patient_id,
+        title: pushTitle,
+        message: pushBody
+      }).catch(e => console.error("Notification error:", e.message));
+
+      // Send Real-time Push Notification
+      sendPatientPushNotification(enquiry.patient_id, {
+        title: pushTitle,
+        body: pushBody,
+        data: {
+          enquiryId: String(enquiry.id),
+          type: "ENQUIRY_STATUS_UPDATE",
+          status,
+          clinicId: String(req.user.id)
+        }
+      }).catch(e => console.error("Push notification error:", e.message));
+    }
+
     return success(res, "Status updated successfully", enquiry);
   } catch (err) {
     console.error("[enquiry.updateStatus]", err);

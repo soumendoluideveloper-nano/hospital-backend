@@ -67,14 +67,6 @@ exports.addDoctor = async (req, res) => {
       experience, consultation_fee, about, profile_image, registration_no
     });
 
-    // Also register in doctor_clinics junction table
-    if (db.DoctorClinic) {
-      await db.DoctorClinic.findOrCreate({
-        where: { doctor_id: doctor.id, clinic_id: clinicId },
-        defaults: { doctor_id: doctor.id, clinic_id: clinicId, status: "Active" }
-      }).catch(err => console.log("[DoctorClinic create error non-fatal]", err.message));
-    }
-
     return success(res, "Doctor added successfully", doctor, 201);
   } catch (err) {
     console.error("[doctor.addDoctor]", err);
@@ -151,45 +143,55 @@ exports.listAllPublicDoctors = async (req, res) => {
       }
     ];
 
-    if (db.Clinic && db.DoctorClinic) {
-      includeModels.push({
-        model:      db.Clinic,
-        as:         "affiliated_clinics",
-        attributes: clinicAttributes,
-        through:    { attributes: ["status"] },
-        required:   false
-      });
-    }
-
     const doctors = await db.Doctor.findAll({
       where,
-      attributes: { exclude: ["phone", "email", "created_at", "updated_at"] },
+      attributes: { exclude: ["created_at", "updated_at"] },
       include: includeModels,
       distinct: true,
       order: [["id", "DESC"]]
     });
 
-    // Map each doctor, gather all unique clinics and calculate distances
-    const formattedDoctors = doctors.map(doc => {
+    // Group doctors by registration_no, phone, or email to merge same doctor added by multiple clinics
+    const groupedDoctorsMap = new Map();
+
+    doctors.forEach(doc => {
       const docJson = doc.toJSON();
-      const clinicMap = new Map();
+      const regKey = (docJson.registration_no && docJson.registration_no.trim().toUpperCase()) ||
+                     (docJson.phone && docJson.phone.trim()) ||
+                     (docJson.email && docJson.email.trim().toLowerCase()) ||
+                     `id_${docJson.id}`;
 
-      // Primary clinic
-      if (docJson.clinic && docJson.clinic.id) {
-        clinicMap.set(Number(docJson.clinic.id), docJson.clinic);
-      }
+      if (!groupedDoctorsMap.has(regKey)) {
+        const clinicMap = new Map();
+        if (docJson.clinic && docJson.clinic.id) {
+          clinicMap.set(Number(docJson.clinic.id), docJson.clinic);
+        }
 
-      // Affiliated clinics
-      if (Array.isArray(docJson.affiliated_clinics)) {
-        docJson.affiliated_clinics.forEach(c => {
-          if (c && c.id && !clinicMap.has(Number(c.id))) {
-            clinicMap.set(Number(c.id), c);
-          }
+        groupedDoctorsMap.set(regKey, {
+          ...docJson,
+          clinicMap,
+          schedules: Array.isArray(docJson.schedules) ? [...docJson.schedules] : [],
         });
+      } else {
+        const existing = groupedDoctorsMap.get(regKey);
+        // Add new clinic if not present
+        if (docJson.clinic && docJson.clinic.id && !existing.clinicMap.has(Number(docJson.clinic.id))) {
+          existing.clinicMap.set(Number(docJson.clinic.id), docJson.clinic);
+        }
+        // Merge schedules
+        if (Array.isArray(docJson.schedules)) {
+          existing.schedules.push(...docJson.schedules);
+        }
+        // Fill missing fields from other clinic's profile if current is empty
+        if (!existing.profile_image && docJson.profile_image) existing.profile_image = docJson.profile_image;
+        if (!existing.about && docJson.about) existing.about = docJson.about;
+        if (!existing.qualification && docJson.qualification) existing.qualification = docJson.qualification;
       }
+    });
 
-      // Calculate distance for all clinics
-      const allClinics = Array.from(clinicMap.values()).map(clinicItem => {
+    // Finalize formatted list with distance calculation
+    const formattedDoctors = Array.from(groupedDoctorsMap.values()).map(docItem => {
+      const allClinics = Array.from(docItem.clinicMap.values()).map(clinicItem => {
         const dist = calculateHaversineDistance(userLat, userLng, clinicItem.latitude, clinicItem.longitude);
         return {
           ...clinicItem,
@@ -197,7 +199,6 @@ exports.listAllPublicDoctors = async (req, res) => {
         };
       });
 
-      // Sort clinics by distance ascending (null distances at the end)
       allClinics.sort((a, b) => {
         if (a.distance_km === null && b.distance_km === null) return 0;
         if (a.distance_km === null) return 1;
@@ -209,10 +210,13 @@ exports.listAllPublicDoctors = async (req, res) => {
         allClinics[0].is_nearest = true;
       }
 
-      const nearestClinic = allClinics.length > 0 ? allClinics[0] : (docJson.clinic || null);
+      const nearestClinic = allClinics.length > 0 ? allClinics[0] : (docItem.clinic || null);
+      delete docItem.clinicMap;
+      delete docItem.phone;
+      delete docItem.email;
 
       return {
-        ...docJson,
+        ...docItem,
         clinic: nearestClinic,
         clinics: allClinics,
         nearest_distance_km: nearestClinic?.distance_km !== undefined ? nearestClinic.distance_km : null
@@ -248,7 +252,10 @@ exports.listPublicDoctors = async (req, res) => {
     const { specialization, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
-    const where = { clinic_id: clinicId, status: "Active" };
+    const where = {
+      clinic_id: clinicId,
+      status: "Active"
+    };
     if (specialization && specialization !== "All") where.specialization = { [Op.like]: `%${specialization}%` };
 
     const { count, rows } = await db.Doctor.findAndCountAll({
@@ -312,16 +319,6 @@ exports.getDoctorById = async (req, res) => {
       }
     ];
 
-    if (db.Clinic && db.DoctorClinic) {
-      includeModels.push({
-        model:      db.Clinic,
-        as:         "affiliated_clinics",
-        attributes: clinicAttributes,
-        through:    { attributes: ["status"] },
-        required:   false
-      });
-    }
-
     const doctor = await db.Doctor.findByPk(req.params.id, {
       attributes: { exclude: ["phone", "email", "created_at", "updated_at"] },
       include: includeModels
@@ -337,11 +334,38 @@ exports.getDoctorById = async (req, res) => {
       clinicMap.set(Number(docJson.clinic.id), docJson.clinic);
     }
 
-    // Affiliated clinics
-    if (Array.isArray(docJson.affiliated_clinics)) {
-      docJson.affiliated_clinics.forEach(c => {
-        if (c && c.id && !clinicMap.has(Number(c.id))) {
-          clinicMap.set(Number(c.id), c);
+    // Also look up any other doctor records with same registration_no, phone, or email added by other clinics
+    const matchCriteria = [];
+    if (doctor.registration_no && String(doctor.registration_no).trim()) {
+      matchCriteria.push({ registration_no: String(doctor.registration_no).trim() });
+    }
+    if (doctor.phone && String(doctor.phone).trim()) {
+      matchCriteria.push({ phone: String(doctor.phone).trim() });
+    }
+    if (doctor.email && String(doctor.email).trim()) {
+      matchCriteria.push({ email: String(doctor.email).trim() });
+    }
+
+    if (matchCriteria.length > 0) {
+      const otherClinicsDoctors = await db.Doctor.findAll({
+        where: {
+          id: { [Op.ne]: doctor.id },
+          status: "Active",
+          [Op.or]: matchCriteria
+        },
+        include: [
+          {
+            model: db.Clinic,
+            as: "clinic",
+            attributes: clinicAttributes,
+            required: false
+          }
+        ]
+      });
+
+      otherClinicsDoctors.forEach(otherDoc => {
+        if (otherDoc.clinic && otherDoc.clinic.id && !clinicMap.has(Number(otherDoc.clinic.id))) {
+          clinicMap.set(Number(otherDoc.clinic.id), otherDoc.clinic.toJSON());
         }
       });
     }
@@ -407,10 +431,39 @@ exports.getDoctorClinicScheduleAndSlots = async (req, res) => {
       dayName = daysOfWeek[now.getDay()];
     }
 
+    // Check if there is a specific doctor row under clinicId with same registration_no/phone
+    let targetDoctorId = Number(doctorId);
+    const baseDoctor = await db.Doctor.findByPk(doctorId);
+    if (baseDoctor && baseDoctor.clinic_id !== Number(clinicId)) {
+      const matchCriteria = [];
+      if (baseDoctor.registration_no && String(baseDoctor.registration_no).trim()) {
+        matchCriteria.push({ registration_no: String(baseDoctor.registration_no).trim() });
+      }
+      if (baseDoctor.phone && String(baseDoctor.phone).trim()) {
+        matchCriteria.push({ phone: String(baseDoctor.phone).trim() });
+      }
+      if (baseDoctor.email && String(baseDoctor.email).trim()) {
+        matchCriteria.push({ email: String(baseDoctor.email).trim() });
+      }
+
+      if (matchCriteria.length > 0) {
+        const clinicDoc = await db.Doctor.findOne({
+          where: {
+            clinic_id: clinicId,
+            status: "Active",
+            [Op.or]: matchCriteria
+          }
+        });
+        if (clinicDoc) {
+          targetDoctorId = clinicDoc.id;
+        }
+      }
+    }
+
     // 1. Fetch schedules for this doctor on this day of the week
     let schedules = await db.DoctorSchedule.findAll({
       where: {
-        doctor_id: doctorId,
+        doctor_id: targetDoctorId,
         day: dayName,
         is_available: true
       },
@@ -420,32 +473,43 @@ exports.getDoctorClinicScheduleAndSlots = async (req, res) => {
     // Also fetch all active schedule days for this doctor
     const allDoctorSchedules = await db.DoctorSchedule.findAll({
       where: {
-        doctor_id: doctorId,
+        doctor_id: targetDoctorId,
         is_available: true
       },
       attributes: ["day"]
     });
     const availableDays = Array.from(new Set(allDoctorSchedules.map(s => s.day)));
 
-    // If no custom schedule configured for this day, provide standard fallback practice sessions
+    let isOffDay = false;
+    let nextAvailableDate = null;
+    let nextAvailableDay = null;
+
     if (schedules.length === 0) {
-      if (dayName !== "Sunday") {
-        schedules = [
-          { id: `def_m_${doctorId}`, doctor_id: Number(doctorId), day: dayName, start_time: "09:00:00", end_time: "13:00:00", slot_duration: 30, is_available: true },
-          { id: `def_e_${doctorId}`, doctor_id: Number(doctorId), day: dayName, start_time: "17:00:00", end_time: "20:00:00", slot_duration: 30, is_available: true }
-        ];
-      } else {
-        schedules = [
-          { id: `def_sun_${doctorId}`, doctor_id: Number(doctorId), day: dayName, start_time: "10:00:00", end_time: "13:00:00", slot_duration: 30, is_available: true }
-        ];
+      isOffDay = true;
+      if (allDoctorSchedules.length > 0) {
+        // Search next 14 days for the nearest upcoming available date
+        const [currY, currM, currD] = formattedDate.split("-").map(Number);
+        for (let i = 1; i <= 14; i++) {
+          const testDate = new Date(currY, currM - 1, currD + i, 12, 0, 0);
+          const testDayName = daysOfWeek[testDate.getDay()];
+          if (availableDays.includes(testDayName)) {
+            const ty = testDate.getFullYear();
+            const tm = String(testDate.getMonth() + 1).padStart(2, "0");
+            const td = String(testDate.getDate()).padStart(2, "0");
+            nextAvailableDate = `${ty}-${tm}-${td}`;
+            nextAvailableDay = testDayName;
+            break;
+          }
+        }
       }
     }
 
     // 2. Fetch existing appointments and enquiries for this doctor & clinic on this date
+    const docIdFilter = Number(doctorId) === Number(targetDoctorId) ? doctorId : { [Op.in]: [doctorId, targetDoctorId] };
     const [existingAppointments, existingEnquiries] = await Promise.all([
       db.Appointment.findAll({
         where: {
-          doctor_id: doctorId,
+          doctor_id: docIdFilter,
           clinic_id: clinicId,
           appointment_date: formattedDate,
           status: { [Op.notIn]: ["Cancelled", "Rejected"] }
@@ -454,7 +518,7 @@ exports.getDoctorClinicScheduleAndSlots = async (req, res) => {
       }),
       db.Enquiry.findAll({
         where: {
-          doctor_id: doctorId,
+          doctor_id: docIdFilter,
           clinic_id: clinicId,
           appointment_date: formattedDate,
           status: { [Op.notIn]: ["Cancelled", "Closed"] }
@@ -540,7 +604,7 @@ exports.getDoctorClinicScheduleAndSlots = async (req, res) => {
 
     // 4. Build 7-day weekly schedule summary (Monday - Sunday) matching clinic app
     const allSchedules = await db.DoctorSchedule.findAll({
-      where: { doctor_id: doctorId },
+      where: { doctor_id: targetDoctorId },
       order: [["start_time", "ASC"]]
     });
 
@@ -572,11 +636,14 @@ exports.getDoctorClinicScheduleAndSlots = async (req, res) => {
       clinic_id: Number(clinicId),
       date: formattedDate,
       day: dayName,
-      available_days: availableDays.length > 0 ? availableDays : daysOfWeek,
+      is_off_day: isOffDay,
+      next_available_date: nextAvailableDate,
+      next_available_day: nextAvailableDay,
+      available_days: availableDays,
       schedules,
-      sessions: sessionCards,
+      sessions: isOffDay ? [] : sessionCards,
       weekly_schedule: weeklySummary,
-      slots: generatedSlots
+      slots: isOffDay ? [] : generatedSlots
     });
   } catch (err) {
     console.error("[doctor.getDoctorClinicScheduleAndSlots]", err);
