@@ -42,11 +42,11 @@ exports.addDoctorSchema = Joi.object({
 
   phone: Joi.string()
     .trim()
-    .pattern(/^\d{10,15}$/)
+    .pattern(/^[6-9]\d{9}$/)
     .required()
     .messages({
       "string.empty":        "Phone number cannot be empty",
-      "string.pattern.base": "Phone must be 10-15 digits with no spaces or symbols",
+      "string.pattern.base": "Phone must be a valid 10-digit mobile number starting with 6, 7, 8, or 9",
       "any.required":        "Phone number is required",
     }),
 
@@ -142,17 +142,17 @@ exports.updateDoctorSchema = Joi.object({
   email: Joi.string()
     .trim()
     .email({ tlds: { allow: false } })
+    .allow(null, "")
     .messages({
-      "string.empty":   "Email cannot be empty",
       "string.email":   "Please enter a valid email address",
     }),
 
   phone: Joi.string()
     .trim()
-    .pattern(/^\d{10,15}$/)
+    .pattern(/^[6-9]\d{9}$/)
+    .allow(null, "")
     .messages({
-      "string.empty":        "Phone number cannot be empty",
-      "string.pattern.base": "Phone must be 10-15 digits with no spaces or symbols",
+      "string.pattern.base": "Phone must be a valid 10-digit mobile number starting with 6, 7, 8, or 9",
     }),
 
   specialization: Joi.string()
