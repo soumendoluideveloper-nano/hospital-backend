@@ -19,11 +19,16 @@ exports.createTest = async (req, res) => {
       return error(res, "Your clinic does not have lab services enabled", 403);
     }
 
-    const { test_name, description, price, report_duration } = req.body;
+    const { test_name, category, description, price, report_duration } = req.body;
     if (!test_name) return error(res, "test_name is required");
 
     const test = await db.LabTest.create({
-      clinic_id: clinicId, test_name, description, price, report_duration
+      clinic_id: clinicId,
+      test_name,
+      category: category || "General",
+      description,
+      price,
+      report_duration
     });
     return success(res, "Lab test added", test, 201);
   } catch (err) {
@@ -32,29 +37,88 @@ exports.createTest = async (req, res) => {
   }
 };
 
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 // ------------------------------------------------------------------
-// GET /api/lab/tests  (public — patients browse tests by clinic)
-// Query: clinic_id (required), search, page, limit
+// GET /api/lab/tests  (public — patients browse tests by clinic or city/location)
+// Query: clinic_id (optional), search, category, latitude, longitude, page, limit
 // ------------------------------------------------------------------
 exports.listTests = async (req, res) => {
   try {
-    const { clinic_id, search, page = 1, limit = 10 } = req.query;
+    const { clinic_id, search, category, latitude, longitude, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    if (!clinic_id) return error(res, "clinic_id query parameter is required");
-
     const { Op } = require("sequelize");
-    const where  = { clinic_id, status: "Active" };
-    if (search) where.test_name = { [Op.like]: `%${search}%` };
+    const where = { status: "Active" };
+    if (clinic_id) where.clinic_id = clinic_id;
+    if (search && search.trim()) {
+      const q = search.trim();
+      where[Op.or] = [
+        { test_name: { [Op.like]: `%${q}%` } },
+        { description: { [Op.like]: `%${q}%` } },
+        { category: { [Op.like]: `%${q}%` } },
+      ];
+    }
+    if (category && category !== "All") where.category = category;
+
+    const clinicInclude = {
+      model: db.Clinic,
+      as: "clinic",
+      attributes: ["id", "name", "logo", "phone", "address", "city", "state", "latitude", "longitude", "has_lab"],
+      where: { status: "Active" }
+    };
 
     const { count, rows } = await db.LabTest.findAndCountAll({
       where,
-      limit:  Number(limit),
+      include: [clinicInclude],
+      limit: Number(limit),
       offset: Number(offset),
-      order:  [["test_name","ASC"]]
+      order: [["created_at", "DESC"], ["test_name", "ASC"]]
     });
 
-    return paginated(res, "Lab tests fetched", rows, count, page, limit);
+    let testsData = rows.map((r) => r.toJSON());
+
+    // Calculate distance if user lat/long provided
+    if (latitude && longitude) {
+      const userLat = parseFloat(latitude);
+      const userLng = parseFloat(longitude);
+
+      testsData = testsData.map((test) => {
+        let dist = null;
+        if (test.clinic?.latitude && test.clinic?.longitude) {
+          const cLat = parseFloat(test.clinic.latitude);
+          const cLng = parseFloat(test.clinic.longitude);
+          if (!isNaN(cLat) && !isNaN(cLng)) {
+            dist = parseFloat(haversineDistance(userLat, userLng, cLat, cLng).toFixed(1));
+          }
+        }
+        return {
+          ...test,
+          distance_km: dist,
+        };
+      });
+
+      testsData.sort((a, b) => {
+        if (a.distance_km === null && b.distance_km === null) return 0;
+        if (a.distance_km === null) return 1;
+        if (b.distance_km === null) return -1;
+        return a.distance_km - b.distance_km;
+      });
+    }
+
+    return paginated(res, "Lab tests fetched", testsData, count, page, limit);
   } catch (err) {
     console.error("[labTest.listTests]", err);
     return error(res, "Internal server error", 500);
@@ -67,11 +131,21 @@ exports.listTests = async (req, res) => {
 exports.myTests = async (req, res) => {
   try {
     const clinicId = req.user.id;
-    const { page = 1, limit = 10 } = req.query;
+
+    // Verify clinic has_lab
+    const clinic = await db.Clinic.findByPk(clinicId);
+    if (!clinic || !clinic.has_lab) {
+      return error(res, "Your clinic does not have lab services enabled", 403);
+    }
+
+    const { category, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
+    const where = { clinic_id: clinicId };
+    if (category && category !== "All") where.category = category;
+
     const { count, rows } = await db.LabTest.findAndCountAll({
-      where:  { clinic_id: clinicId },
+      where,
       limit:  Number(limit),
       offset: Number(offset),
       order:  [["created_at","DESC"]]
@@ -92,7 +166,7 @@ exports.updateTest = async (req, res) => {
     const test = await db.LabTest.findOne({ where: { id: req.params.id, clinic_id: req.user.id } });
     if (!test) return error(res, "Lab test not found", 404);
 
-    const allowed = ["test_name","description","price","report_duration","status"];
+    const allowed = ["test_name","category","description","price","report_duration","status"];
     const updates = {};
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 

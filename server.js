@@ -23,6 +23,8 @@ const express = require("express");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 const cors = require("cors");
 
+const path = require("path");
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -34,6 +36,13 @@ app.use(cors({ origin: true, credentials: true }));
 const path = require("path");
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
+
+// --------------------------------------------------
+// Static uploads (shared across all services)
+// Accessible at: GET /uploads/<folder>/<filename>
+// --------------------------------------------------
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+
 
 // --------------------------------------------------
 // Health check

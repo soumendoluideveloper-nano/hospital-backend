@@ -15,7 +15,7 @@
  */
 
 const https = require("https");
-const http  = require("http");
+const http = require("http");
 
 // ─── Utility: make an HTTP/HTTPS POST or GET request ──────────────
 function httpRequest(options, postBody = null) {
@@ -39,9 +39,9 @@ function httpRequest(options, postBody = null) {
 // Docs: https://docs.msg91.com/send-otp
 // ENV:  SMS_MSG91_AUTHKEY, SMS_MSG91_TEMPLATE_ID, SMS_MSG91_SENDER_ID
 async function sendViaMSG91(phone, otp) {
-  const authkey    = process.env.SMS_MSG91_AUTHKEY;
+  const authkey = process.env.SMS_MSG91_AUTHKEY;
   const templateId = process.env.SMS_MSG91_TEMPLATE_ID;
-  const senderId   = process.env.SMS_MSG91_SENDER_ID || "CLINIC";
+  const senderId = process.env.SMS_MSG91_SENDER_ID || "CLINIC";
 
   if (!authkey || !templateId) {
     throw new Error("MSG91: SMS_MSG91_AUTHKEY and SMS_MSG91_TEMPLATE_ID are required in .env");
@@ -59,10 +59,10 @@ async function sendViaMSG91(phone, otp) {
 
   const options = {
     hostname: "control.msg91.com",
-    path:     "/api/v5/otp",
-    method:   "POST",
-    headers:  {
-      "Content-Type":   "application/json",
+    path: "/api/v5/otp",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
       "Content-Length": Buffer.byteLength(payload)
     }
   };
@@ -79,42 +79,79 @@ async function sendViaMSG91(phone, otp) {
 
 // ─── Fast2SMS ─────────────────────────────────────────────────────
 // Docs: https://docs.fast2sms.com
-// ENV:  SMS_FAST2SMS_APIKEY, SMS_FAST2SMS_SENDER_ID, SMS_FAST2SMS_MESSAGE
+// ENV:  SMS_FAST2SMS_APIKEY, SMS_FAST2SMS_ROUTE (default: "otp"), SMS_FAST2SMS_SENDER_ID, SMS_FAST2SMS_MESSAGE_ID
 async function sendViaFast2SMS(phone, otp) {
-  const apiKey    = process.env.SMS_FAST2SMS_APIKEY;
-  const senderId  = process.env.SMS_FAST2SMS_SENDER_ID || "CLINIC";
-  const msgTemplate = process.env.SMS_FAST2SMS_MESSAGE ||
-    "Your OTP for Clinic Management registration is {otp}. Valid for 10 minutes. Do not share.";
+  const apiKey = process.env.SMS_FAST2SMS_APIKEY;
+  const route = (process.env.SMS_FAST2SMS_ROUTE || "otp").toLowerCase();
+  const senderId = process.env.SMS_FAST2SMS_SENDER_ID || "CLINIC";
 
   if (!apiKey) {
     throw new Error("Fast2SMS: SMS_FAST2SMS_APIKEY is required in .env");
   }
 
-  const message = msgTemplate.replace("{otp}", otp);
+  // Fast2SMS expects 10-digit Indian mobile number
+  const cleanPhone = phone.toString().replace(/\D/g, "").slice(-10);
+  if (cleanPhone.length !== 10) {
+    throw new Error(`Fast2SMS: Invalid 10-digit phone number: ${phone}`);
+  }
 
-  // Fast2SMS DLT (Template-based) route
-  const params = new URLSearchParams({
+  const queryParams = {
     authorization: apiKey,
-    sender_id:     senderId,
-    message,
-    route:         "dlt",
-    numbers:       phone
-  }).toString();
+    route: route,
+    numbers: cleanPhone
+  };
+
+  if (route === "otp") {
+    // Quick OTP Route (Fastest, pre-approved default OTP route, no DLT Message ID required)
+    queryParams.variables_values = otp;
+  } else if (route === "dlt") {
+    // DLT Template Route — Fast2SMS requires numeric Message ID / Template ID and variables_values
+    const messageId = process.env.SMS_FAST2SMS_MESSAGE_ID || process.env.SMS_FAST2SMS_TEMPLATE_ID;
+    if (!messageId) {
+      throw new Error(
+        "Fast2SMS DLT Error: SMS_FAST2SMS_MESSAGE_ID is missing in .env. " +
+        "Please provide the numeric Message ID from your Fast2SMS DLT Templates dashboard (or set SMS_FAST2SMS_ROUTE=otp for default OTP route)."
+      );
+    }
+    queryParams.sender_id = senderId;
+    queryParams.message = messageId;
+
+    // Fast2SMS DLT template 182647 has 5 variables:
+    // 1: Dear, 2: Customer, 3: OTP, 4: 10, 5: minute -CareSpot
+    const dltVars = process.env.SMS_FAST2SMS_VARIABLES;
+    if (dltVars) {
+      queryParams.variables_values = dltVars.replace("{otp}", otp);
+    } else {
+      queryParams.variables_values = `Dear|Customer|${otp}|10|minute -CareSpot`;
+    }
+  } else {
+    // Quick / Transactional route (route=q)
+    const msgTemplate = process.env.SMS_FAST2SMS_MESSAGE || process.env.SMS_MESSAGE_TEMPLATE ||
+      "Dear Customer: Use OTP {otp} to complete your registration. Please do not share this code with anyone for security reasons. It is valid for 10 minute -CareSpot.";
+    queryParams.message = msgTemplate.replace("{otp}", otp);
+    queryParams.language = "english";
+    queryParams.route = "q";
+  }
+
+  const query = new URLSearchParams(queryParams).toString();
 
   const options = {
     hostname: "www.fast2sms.com",
-    path:     `/dev/bulkV2?${params}`,
-    method:   "GET",
-    headers:  { "cache-control": "no-cache" }
+    path: `/dev/bulkV2?${query}`,
+    method: "GET",
+    headers: { "cache-control": "no-cache" }
   };
 
   const response = await httpRequest(options);
 
   if (!response.body?.return) {
-    throw new Error(`Fast2SMS error: ${JSON.stringify(response.body)}`);
+    const errMsg = Array.isArray(response.body?.message)
+      ? response.body.message.join(", ")
+      : JSON.stringify(response.body);
+    throw new Error(`Fast2SMS error: ${errMsg}`);
   }
 
-  console.log(`[SMS-Fast2SMS] OTP sent to ${phone}:`, response.body);
+  console.log(`[SMS-Fast2SMS] OTP sent to ${cleanPhone}:`, response.body);
   return response.body;
 }
 
@@ -123,17 +160,17 @@ async function sendViaFast2SMS(phone, otp) {
 // ENV:  SMS_TWILIO_SID, SMS_TWILIO_AUTH_TOKEN, SMS_TWILIO_FROM
 async function sendViaTwilio(phone, otp) {
   const accountSid = process.env.SMS_TWILIO_SID;
-  const authToken  = process.env.SMS_TWILIO_AUTH_TOKEN;
-  const from       = process.env.SMS_TWILIO_FROM;
+  const authToken = process.env.SMS_TWILIO_AUTH_TOKEN;
+  const from = process.env.SMS_TWILIO_FROM;
 
   if (!accountSid || !authToken || !from) {
     throw new Error("Twilio: SMS_TWILIO_SID, SMS_TWILIO_AUTH_TOKEN, and SMS_TWILIO_FROM are required in .env");
   }
 
   const toNumber = phone.startsWith("+") ? phone : `+91${phone}`;
-  const body     = process.env.SMS_MESSAGE_TEMPLATE
+  const body = process.env.SMS_MESSAGE_TEMPLATE
     ? process.env.SMS_MESSAGE_TEMPLATE.replace("{otp}", otp)
-    : `Your OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`;
+    : `Dear Customer: Use OTP ${otp} to complete your registration. Please do not share this code with anyone for security reasons. It is valid for 10 minute -CareSpot.`;
 
   const payload = new URLSearchParams({ To: toNumber, From: from, Body: body }).toString();
 
@@ -141,11 +178,11 @@ async function sendViaTwilio(phone, otp) {
 
   const options = {
     hostname: "api.twilio.com",
-    path:     `/2010-04-01/Accounts/${accountSid}/Messages.json`,
-    method:   "POST",
-    headers:  {
+    path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    method: "POST",
+    headers: {
       "Authorization": `Basic ${credentials}`,
-      "Content-Type":  "application/x-www-form-urlencoded",
+      "Content-Type": "application/x-www-form-urlencoded",
       "Content-Length": Buffer.byteLength(payload)
     }
   };
@@ -172,15 +209,15 @@ async function sendViaTextLocal(phone, otp) {
   }
 
   const message = encodeURIComponent(
-    (process.env.SMS_MESSAGE_TEMPLATE || "Your OTP is {otp}. Valid for 10 minutes.")
+    (process.env.SMS_MESSAGE_TEMPLATE || "Dear Customer: Use OTP {otp} to complete your registration. Please do not share this code with anyone for security reasons. It is valid for 10 minute -CareSpot.")
       .replace("{otp}", otp)
   );
   const numbers = phone.startsWith("91") ? phone : `91${phone}`;
 
   const options = {
     hostname: "api.textlocal.in",
-    path:     `/send/?apikey=${apiKey}&numbers=${numbers}&message=${message}&sender=${sender}`,
-    method:   "GET"
+    path: `/send/?apikey=${apiKey}&numbers=${numbers}&message=${message}&sender=${sender}`,
+    method: "GET"
   };
 
   const response = await httpRequest(options);

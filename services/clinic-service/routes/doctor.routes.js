@@ -5,26 +5,19 @@
 const router     = require("express").Router();
 const controller = require("../controllers/doctor.controller");
 const auth       = require("../../../common/middleware/auth.middleware");
-const { setFolder, upload } = require("../../../common/middleware/upload.middleware");
-
-// ---- Public ----
-router.get("/doctors/public/:clinicId", controller.listPublicDoctors);
-router.get("/doctors/:id",             controller.getDoctorById);
+const validate   = require("../../../common/middleware/validate.middleware");
+const { addDoctorSchema, updateDoctorSchema } = require("../validation/doctor.validation");
 
 // ---- Clinic admin ----
-router.post("/doctors",
-  auth({ roles: ["clinic"] }),
-  setFolder("profiles"),
-  upload.single("profile_image"),
-  controller.addDoctor
-);
 router.get   ("/doctors",     auth({ roles: ["clinic"] }), controller.listDoctors);
-router.put   ("/doctors/:id",
-  auth({ roles: ["clinic"] }),
-  setFolder("profiles"),
-  upload.single("profile_image"),
-  controller.updateDoctor
-);
-router.delete("/doctors/:id", auth({ roles: ["clinic"] }), controller.removeDoctor);
+router.post  ("/doctors",     auth({ roles: ["clinic"] }), validate(addDoctorSchema),    controller.addDoctor);
+router.put   ("/doctors/:id(\\d+)", auth({ roles: ["clinic"] }), validate(updateDoctorSchema), controller.updateDoctor);
+router.delete("/doctors/:id(\\d+)", auth({ roles: ["clinic"] }), controller.removeDoctor);
+
+// ---- Public ----
+router.get("/doctors/public",                                           controller.listAllPublicDoctors);
+router.get("/doctors/public/:clinicId(\\d+)",                           controller.listPublicDoctors);
+router.get("/doctors/:id(\\d+)",                                        controller.getDoctorById);
+router.get("/doctors/:doctorId(\\d+)/clinics/:clinicId(\\d+)/schedule", controller.getDoctorClinicScheduleAndSlots);
 
 module.exports = router;

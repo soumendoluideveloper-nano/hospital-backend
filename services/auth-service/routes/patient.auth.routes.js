@@ -28,7 +28,16 @@ router.post("/patient/complete-profile",
 // ── Login ────────────────────────────────────────────────────────────
 router.post("/patient/login", controller.login);
 
+// ── Forgot Password ──────────────────────────────────────────────────
+router.post("/patient/forgot-password/send-otp",   controller.forgotPasswordSendOtp);
+router.post("/patient/forgot-password/verify-otp", controller.forgotPasswordVerifyOtp);
+router.post("/patient/forgot-password/reset",
+  auth({ roles: ["reset_password"] }),
+  controller.forgotPasswordReset
+);
+
 // ── Profile (fully registered patient) ──────────────────────────────
 router.get("/patient/profile", auth({ roles: ["patient"] }), controller.getProfile);
 
 module.exports = router;
+

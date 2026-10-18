@@ -8,24 +8,27 @@
  */
 
 const multer = require("multer");
-const path   = require("path");
-const fs     = require("fs");
+const path = require("path");
+const fs = require("fs");
 
 /** Ensure upload directory exists */
 const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
 
+/** Absolute path to the shared uploads root (hospital-backend/public/uploads) */
+const UPLOADS_ROOT = path.resolve(__dirname, "../../public/uploads");
+
 /** Multer disk storage — organized by sub-folder */
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     const folder = req.uploadFolder || "misc";
-    const dir = path.resolve(__dirname, "../../public/uploads", folder);
+    const dir = path.join(UPLOADS_ROOT, folder);
     ensureDir(dir);
     cb(null, dir);
   },
   filename: (_req, file, cb) => {
-    const ext  = path.extname(file.originalname);
+    const ext = path.extname(file.originalname);
     const name = `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
     cb(null, name);
   }
@@ -34,8 +37,8 @@ const storage = multer.diskStorage({
 /** File filter — images only (including ico/svg and PDFs on reports) */
 const fileFilter = (_req, file, cb) => {
   const allowed = /jpeg|jpg|png|gif|webp|pdf|ico|svg|svg\+xml|x-icon|vnd\.microsoft\.icon/i;
-  const ext     = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mime    = allowed.test(file.mimetype);
+  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+  const mime = allowed.test(file.mimetype);
   if (ext || mime) return cb(null, true);
   cb(new Error("Only images (jpeg, jpg, png, gif, webp, ico, svg) and PDFs are allowed."));
 };

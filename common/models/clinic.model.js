@@ -61,6 +61,10 @@ module.exports = (sequelize, DataTypes) => {
       state: {
         type: DataTypes.STRING(100)
       },
+      pincode: {
+        type:    DataTypes.STRING(10),
+        comment: "Postal / ZIP code"
+      },
       country: {
         type: DataTypes.STRING(100)
       },
@@ -81,9 +85,18 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: false,
         comment:      "Whether this clinic offers lab test services"
       },
+      profile_views: {
+        type:         DataTypes.INTEGER.UNSIGNED,
+        defaultValue: 0,
+        comment:      "Total clinic profile views / visits"
+      },
       status: {
         type:         DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active"
+      },
+      push_token: {
+        type:    DataTypes.STRING(255),
+        comment: "Expo push notification token"
       }
     },
     {
@@ -95,13 +108,13 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   Clinic.associate = (db) => {
-    Clinic.hasMany(db.Doctor,      { foreignKey: "clinic_id", as: "doctors"       });
-    Clinic.hasMany(db.LabTest,     { foreignKey: "clinic_id", as: "lab_tests"     });
-    Clinic.hasMany(db.Appointment, { foreignKey: "clinic_id", as: "appointments"  });
-    Clinic.hasMany(db.Enquiry,     { foreignKey: "clinic_id", as: "enquiries"     });
-    Clinic.hasMany(db.CallLog,     { foreignKey: "clinic_id", as: "call_logs"     });
-    Clinic.hasMany(db.ClinicReview,{ foreignKey: "clinic_id", as: "reviews"       });
-    Clinic.hasMany(db.TestBooking, { foreignKey: "clinic_id", as: "test_bookings" });
+    Clinic.hasMany(db.Doctor,        { foreignKey: "clinic_id", as: "doctors"            });
+    Clinic.hasMany(db.LabTest,       { foreignKey: "clinic_id", as: "lab_tests"          });
+    Clinic.hasMany(db.Appointment,   { foreignKey: "clinic_id", as: "appointments"       });
+    Clinic.hasMany(db.Enquiry,       { foreignKey: "clinic_id", as: "enquiries"          });
+    Clinic.hasMany(db.CallLog,       { foreignKey: "clinic_id", as: "call_logs"          });
+    Clinic.hasMany(db.ClinicReview,  { foreignKey: "clinic_id", as: "reviews"            });
+    Clinic.hasMany(db.TestBooking,   { foreignKey: "clinic_id", as: "test_bookings"      });
   };
 
   return Clinic;

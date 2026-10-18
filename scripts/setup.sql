@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS clinics (
     longitude        DECIMAL(11,8),
     description      TEXT,
     has_lab          BOOLEAN DEFAULT FALSE,
+    profile_views    INT UNSIGNED DEFAULT 0,
     status           ENUM('Active','Inactive') DEFAULT 'Active',
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

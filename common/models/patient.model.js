@@ -68,6 +68,10 @@ module.exports = (sequelize, DataTypes) => {
       status: {
         type:         DataTypes.ENUM("Active", "Inactive"),
         defaultValue: "Active"
+      },
+      push_token: {
+        type:    DataTypes.STRING(255),
+        comment: "Expo push notification token"
       }
     },
     {

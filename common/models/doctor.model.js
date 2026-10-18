@@ -49,6 +49,10 @@ module.exports = (sequelize, DataTypes) => {
         type:    DataTypes.DECIMAL(10, 2),
         comment: "Per-session consultation fee in default currency"
       },
+      registration_no: {
+        type:    DataTypes.STRING(50),
+        comment: "Registration number / license number"
+      },
       profile_image: {
         type:    DataTypes.STRING(255),
         comment: "Relative path to doctor's profile picture"
@@ -71,12 +75,12 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   Doctor.associate = (db) => {
-    Doctor.belongsTo(db.Clinic,       { foreignKey: "clinic_id", as: "clinic"         });
-    Doctor.hasMany(db.DoctorSchedule, { foreignKey: "doctor_id", as: "schedules"      });
-    Doctor.hasMany(db.Appointment,    { foreignKey: "doctor_id", as: "appointments"   });
-    Doctor.hasMany(db.Enquiry,        { foreignKey: "doctor_id", as: "enquiries"      });
-    Doctor.hasMany(db.CallLog,        { foreignKey: "doctor_id", as: "call_logs"      });
-    Doctor.hasMany(db.DoctorReview,   { foreignKey: "doctor_id", as: "reviews"        });
+    Doctor.belongsTo(db.Clinic,         { foreignKey: "clinic_id", as: "clinic"              });
+    Doctor.hasMany(db.DoctorSchedule,   { foreignKey: "doctor_id", as: "schedules"           });
+    Doctor.hasMany(db.Appointment,      { foreignKey: "doctor_id", as: "appointments"        });
+    Doctor.hasMany(db.Enquiry,          { foreignKey: "doctor_id", as: "enquiries"           });
+    Doctor.hasMany(db.CallLog,          { foreignKey: "doctor_id", as: "call_logs"           });
+    Doctor.hasMany(db.DoctorReview,     { foreignKey: "doctor_id", as: "reviews"             });
   };
 
   return Doctor;

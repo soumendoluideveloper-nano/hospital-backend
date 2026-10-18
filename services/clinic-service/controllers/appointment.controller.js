@@ -5,6 +5,7 @@
 
 const db     = require("../../../common/models");
 const { success, error, paginated } = require("../../../common/helpers/response.helper");
+const { sendPatientPushNotification } = require("../../../common/helpers/pushNotification.helper");
 
 // ------------------------------------------------------------------
 // GET /api/clinic/appointments  (clinic admin)
@@ -78,13 +79,28 @@ exports.updateStatus = async (req, res) => {
 
     await appt.update({ status, notes: req.body.notes || appt.notes });
 
-    // Notify patient
+    const notifTitle = `Appointment ${status} 🩺`;
+    const notifMessage = `Your appointment on ${appt.appointment_date} has been ${status.toLowerCase()}.`;
+
+    // Notify patient in DB
     await db.Notification.create({
       receiver_type: "Patient",
       receiver_id:   appt.patient_id,
-      title:         `Appointment ${status}`,
-      message:       `Your appointment on ${appt.appointment_date} has been ${status.toLowerCase()}.`
-    });
+      title:         notifTitle,
+      message:       notifMessage
+    }).catch(e => console.error("Notification create error:", e.message));
+
+    // Send Real-time Push Notification
+    sendPatientPushNotification(appt.patient_id, {
+      title: notifTitle,
+      body: notifMessage,
+      data: {
+        appointmentId: String(appt.id),
+        type: "APPOINTMENT_STATUS_UPDATE",
+        status,
+        date: appt.appointment_date
+      }
+    }).catch(e => console.error("Push notification error:", e.message));
 
     return success(res, `Appointment ${status.toLowerCase()} successfully`, appt);
   } catch (err) {

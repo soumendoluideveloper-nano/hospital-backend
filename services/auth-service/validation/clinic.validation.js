@@ -23,18 +23,22 @@ exports.verifyOtpSchema = Joi.object({
  * Complete Clinic Profile — all details as JSON body
  */
 exports.completeClinicSchema = Joi.object({
+  phone: Joi.string().min(7).max(20).required(),
+ 
   name: Joi.string().min(2).max(150).required(),
   owner_name: Joi.string().min(2).max(100).required(),
   email: Joi.string().email().required(),
-  registration_no: Joi.string().max(100).required(),
+  registration_no: Joi.string().optional().allow("", null),
   address: Joi.string().required(),
   city: Joi.string().required(),
   state: Joi.string().required(),
-  country: Joi.string().required(),
-  has_lab: Joi.boolean().required(),
+  country: Joi.string().optional().allow("", null),
+  has_lab: Joi.boolean().optional().allow("", null),
   latitude: Joi.number().optional(),
   longitude: Joi.number().optional(),
-  description: Joi.string().optional().allow("", null)
+  description: Joi.string().optional().allow("", null),
+  pincode: Joi.string().regex(/^\d{4,10}$/).optional().allow("", null),
+  password: Joi.string().min(6).required() // optional if already provided in Step 1
 });
 
 // ── Login (unchanged) ────────────────────────────────────────────────

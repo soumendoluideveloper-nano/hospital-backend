@@ -22,7 +22,12 @@ module.exports = (sequelize, DataTypes) => {
       test_name: {
         type:      DataTypes.STRING(150),
         allowNull: false,
-        comment:   "Name of the diagnostic test e.g. CBC, LFT, HbA1c"
+        comment:   "Name of the diagnostic test e.g. CBC, X-Ray, CT Scan, MRI"
+      },
+      category: {
+        type:         DataTypes.STRING(100),
+        defaultValue: "General",
+        comment:      "Category of test e.g. Radiology, Pathology, Ultrasound, Cardiology, General"
       },
       description: {
         type:    DataTypes.TEXT,

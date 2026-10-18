@@ -21,7 +21,7 @@ const auth       = require("../../../common/middleware/auth.middleware");
 router.post("/clinic/send-otp",         controller.sendOtp);
 router.post("/clinic/verify-otp",       controller.verifyOtp);
 router.post("/clinic/complete-profile",
-  auth({ roles: ["pending_clinic"] }),
+  // auth({ roles: ["pending_clinic"] }),
   controller.completeProfile
 );
 
