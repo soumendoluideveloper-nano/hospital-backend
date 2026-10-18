@@ -20,7 +20,7 @@ const ensureDir = (dir) => {
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     const folder = req.uploadFolder || "misc";
-    const dir = path.join("public", "uploads", folder);
+    const dir = path.resolve(__dirname, "../../public/uploads", folder);
     ensureDir(dir);
     cb(null, dir);
   },
@@ -31,13 +31,13 @@ const storage = multer.diskStorage({
   }
 });
 
-/** File filter — images only (loosened for PDFs on reports) */
+/** File filter — images only (including ico/svg and PDFs on reports) */
 const fileFilter = (_req, file, cb) => {
-  const allowed = /jpeg|jpg|png|gif|webp|pdf/;
+  const allowed = /jpeg|jpg|png|gif|webp|pdf|ico|svg|svg\+xml|x-icon|vnd\.microsoft\.icon/i;
   const ext     = allowed.test(path.extname(file.originalname).toLowerCase());
   const mime    = allowed.test(file.mimetype);
-  if (ext && mime) return cb(null, true);
-  cb(new Error("Only images (jpeg, jpg, png, gif, webp) and PDFs are allowed."));
+  if (ext || mime) return cb(null, true);
+  cb(new Error("Only images (jpeg, jpg, png, gif, webp, ico, svg) and PDFs are allowed."));
 };
 
 const upload = multer({
