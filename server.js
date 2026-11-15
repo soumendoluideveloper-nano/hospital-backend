@@ -33,7 +33,7 @@ const PORT = process.env.PORT || 3000;
 // --------------------------------------------------
 app.use(cors({ origin: true, credentials: true }));
 
-const path = require("path");
+
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
