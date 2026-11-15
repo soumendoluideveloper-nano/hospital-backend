@@ -14,20 +14,18 @@ require("dotenv").config({
   path: require("path").resolve(__dirname, "../../.env")
 });
 
-const express    = require("express");
-const cors       = require("cors");
+const express = require("express");
+const cors = require("cors");
 const { sequelize } = require("../../common/models");
-const routes     = require("./routes");
+const routes = require("./routes");
 
-const app  = express();
+const app = express();
 const PORT = process.env.ADMIN_SERVICE_PORT || 4004;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: true, credentials: true }));
-const path = require("path");
-app.use("/public", express.static(path.resolve(__dirname, "../../public")));
-app.use("/uploads", express.static(path.resolve(__dirname, "../../public/uploads")));
+app.use("/uploads", express.static("public/uploads"));
 
 app.use("/api/admin", routes);
 

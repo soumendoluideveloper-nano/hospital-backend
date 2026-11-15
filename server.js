@@ -25,7 +25,7 @@ const cors = require("cors");
 
 const path = require("path");
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --------------------------------------------------
@@ -33,7 +33,7 @@ const PORT = process.env.PORT || 3000;
 // --------------------------------------------------
 app.use(cors({ origin: true, credentials: true }));
 
-const path = require("path");
+
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
@@ -56,8 +56,8 @@ app.get("/health", (_req, res) =>
 // --------------------------------------------------
 app.use(
   createProxyMiddleware({
-    pathFilter:  "/api/auth",
-    target:      `http://localhost:${process.env.AUTH_SERVICE_PORT || 4000}`,
+    pathFilter: "/api/auth",
+    target: `http://localhost:${process.env.AUTH_SERVICE_PORT || 4000}`,
     changeOrigin: true
   })
 );
@@ -68,8 +68,8 @@ app.use(
 // --------------------------------------------------
 app.use(
   createProxyMiddleware({
-    pathFilter:  "/api/clinic",
-    target:      `http://localhost:${process.env.CLINIC_SERVICE_PORT || 4001}`,
+    pathFilter: "/api/clinic",
+    target: `http://localhost:${process.env.CLINIC_SERVICE_PORT || 4001}`,
     changeOrigin: true
   })
 );
@@ -80,8 +80,8 @@ app.use(
 // --------------------------------------------------
 app.use(
   createProxyMiddleware({
-    pathFilter:  "/api/patient",
-    target:      `http://localhost:${process.env.PATIENT_SERVICE_PORT || 4002}`,
+    pathFilter: "/api/patient",
+    target: `http://localhost:${process.env.PATIENT_SERVICE_PORT || 4002}`,
     changeOrigin: true
   })
 );
@@ -91,8 +91,8 @@ app.use(
 // --------------------------------------------------
 app.use(
   createProxyMiddleware({
-    pathFilter:  "/api/lab",
-    target:      `http://localhost:${process.env.LAB_SERVICE_PORT || 4003}`,
+    pathFilter: "/api/lab",
+    target: `http://localhost:${process.env.LAB_SERVICE_PORT || 4003}`,
     changeOrigin: true
   })
 );
@@ -102,8 +102,8 @@ app.use(
 // --------------------------------------------------
 app.use(
   createProxyMiddleware({
-    pathFilter:  "/api/admin",
-    target:      `http://localhost:${process.env.ADMIN_SERVICE_PORT || 4004}`,
+    pathFilter: "/api/admin",
+    target: `http://localhost:${process.env.ADMIN_SERVICE_PORT || 4004}`,
     changeOrigin: true
   })
 );

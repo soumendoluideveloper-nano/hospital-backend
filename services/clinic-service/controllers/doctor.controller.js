@@ -67,7 +67,13 @@ exports.addDoctor = async (req, res) => {
       experience, consultation_fee, about, profile_image, registration_no
     });
 
-    return success(res, "Doctor added successfully", doctor, 201);
+    const docJson = doctor.toJSON();
+    return success(res, "Doctor added successfully", {
+      ...docJson,
+      phone: docJson.phone || "",
+      mobile: docJson.phone || "",
+      email: docJson.email || ""
+    }, 201);
   } catch (err) {
     console.error("[doctor.addDoctor]", err);
     return error(res, "Internal server error", 500);
@@ -84,7 +90,11 @@ exports.listDoctors = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const where = { clinic_id: clinicId };
-    if (status) where.status = status;
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = "Active";
+    }
     if (search) where.name   = { [Op.like]: `%${search}%` };
 
     const { count, rows } = await db.Doctor.findAndCountAll({
@@ -320,7 +330,7 @@ exports.getDoctorById = async (req, res) => {
     ];
 
     const doctor = await db.Doctor.findByPk(req.params.id, {
-      attributes: { exclude: ["phone", "email", "created_at", "updated_at"] },
+      attributes: { exclude: ["created_at", "updated_at"] },
       include: includeModels
     });
 
@@ -391,9 +401,13 @@ exports.getDoctorById = async (req, res) => {
       allClinics[0].is_nearest = true;
     }
 
+    const clinicObj = allClinics[0] || docJson.clinic || null;
     const responseData = {
       ...docJson,
-      clinic: allClinics[0] || docJson.clinic || null,
+      phone: docJson.phone || (clinicObj && clinicObj.phone) || "",
+      mobile: docJson.phone || (clinicObj && clinicObj.phone) || "",
+      email: docJson.email || (clinicObj && clinicObj.email) || "",
+      clinic: clinicObj,
       clinics: allClinics
     };
 
@@ -666,7 +680,13 @@ exports.updateDoctor = async (req, res) => {
     allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
 
     await doctor.update(updates);
-    return success(res, "Doctor updated", doctor);
+    const updatedData = doctor.toJSON();
+    return success(res, "Doctor updated", {
+      ...updatedData,
+      phone: updatedData.phone || "",
+      mobile: updatedData.phone || "",
+      email: updatedData.email || ""
+    });
   } catch (err) {
     console.error("[doctor.updateDoctor]", err);
     return error(res, "Internal server error", 500);
@@ -682,8 +702,21 @@ exports.removeDoctor = async (req, res) => {
     const doctor   = await db.Doctor.findOne({ where: { id: req.params.id, clinic_id: clinicId } });
     if (!doctor) return error(res, "Doctor not found or not under your clinic", 404);
 
-    await doctor.update({ status: "Inactive" }); // Soft delete
-    return success(res, "Doctor removed successfully");
+    // Hard delete associated doctor schedules, reviews, and logs first to avoid FK constraint issues
+    if (db.DoctorSchedule) {
+      await db.DoctorSchedule.destroy({ where: { doctor_id: doctor.id } });
+    }
+    if (db.DoctorReview) {
+      await db.DoctorReview.destroy({ where: { doctor_id: doctor.id } });
+    }
+    if (db.CallLog) {
+      await db.CallLog.destroy({ where: { doctor_id: doctor.id } });
+    }
+
+    // Hard delete the doctor record from database
+    await doctor.destroy();
+
+    return success(res, "Doctor deleted permanently");
   } catch (err) {
     console.error("[doctor.removeDoctor]", err);
     return error(res, "Internal server error", 500);

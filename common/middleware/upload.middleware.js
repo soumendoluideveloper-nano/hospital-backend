@@ -28,25 +28,43 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    let ext = path.extname(file.originalname || "").toLowerCase();
+    if (!ext) {
+      if (file.mimetype === "image/png") ext = ".png";
+      else if (file.mimetype === "image/webp") ext = ".webp";
+      else if (file.mimetype === "application/pdf") ext = ".pdf";
+      else if (file.mimetype === "image/gif") ext = ".gif";
+      else ext = ".jpg";
+    }
     const name = `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
     cb(null, name);
   }
 });
 
-/** File filter — images only (including ico/svg and PDFs on reports) */
+/** File filter — images & PDFs with flexible mobile fallback */
 const fileFilter = (_req, file, cb) => {
-  const allowed = /jpeg|jpg|png|gif|webp|pdf|ico|svg|svg\+xml|x-icon|vnd\.microsoft\.icon/i;
-  const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-  const mime = allowed.test(file.mimetype);
-  if (ext || mime) return cb(null, true);
-  cb(new Error("Only images (jpeg, jpg, png, gif, webp, ico, svg) and PDFs are allowed."));
+  const allowedExts = /jpeg|jpg|png|gif|webp|pdf/i;
+  const allowedMimes = /^image\/(jpeg|jpg|png|gif|webp)|application\/pdf/i;
+
+  const originalName = file.originalname || "";
+  const ext = path.extname(originalName).replace(".", "").toLowerCase();
+  const mime = file.mimetype || "";
+
+  const isExtValid = ext ? allowedExts.test(ext) : false;
+  const isMimeValid = mime ? allowedMimes.test(mime) : false;
+
+  // Accept if extension or mimetype matches, or if octet-stream with valid extension
+  if (isExtValid || isMimeValid || (!ext && mime.startsWith("image/"))) {
+    return cb(null, true);
+  }
+
+  cb(new Error("Only images (jpeg, jpg, png, gif, webp) and PDFs are allowed."));
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5 MB
+  limits: { fileSize: 20 * 1024 * 1024 } // 20 MB for high-res camera photos
 });
 
 /**
@@ -59,3 +77,4 @@ exports.setFolder = (folder) => (req, _res, next) => {
 };
 
 exports.upload = upload;
+
